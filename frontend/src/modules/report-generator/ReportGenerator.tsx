@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — Report Generator
+ * AquaShield 3D — Report Generator
  * Customizable EAP/incident documents: parameters + officer's free text,
  * broadcast to officials/government, and an inbox for received documents.
  */
@@ -160,7 +160,7 @@ export default function ReportGenerator() {
             <div className="max-w-2xl mx-auto">
               <div className="border border-cmd-red/40 bg-cmd-red/[0.07] rounded-lg p-3 mb-4">
                 <p className="text-xs text-cmd-ink font-bold">[{docKind}] {docTitle || '(untitled)'}</p>
-                <p className="text-xs text-cmd-muted mt-1">DamSafe Twin broadcast • {new Date().toLocaleString()}</p>
+                <p className="text-xs text-cmd-muted mt-1">AquaShield 3D broadcast • {new Date().toLocaleString()}</p>
               </div>
               <div className="text-sm text-cmd-ink/90 whitespace-pre-wrap leading-relaxed">
                 {officerNote || <span className="text-cmd-muted italic">Officer note appears here…</span>}
@@ -253,3 +253,4 @@ export default function ReportGenerator() {
     </motion.div>
   );
 }
+

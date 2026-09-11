@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — public landing (pre-auth).
+ * AquaShield 3D — public landing (pre-auth).
  * Verifies the portal's purpose, then routes officials to login/register.
  */
 
@@ -17,7 +17,7 @@ export default function Landing() {
             <ShieldCheck className="h-5 w-5 text-cmd-teal" strokeWidth={1.75} />
           </span>
           <div>
-            <p className="text-[15px] font-semibold leading-tight">DamSafe Twin</p>
+            <p className="text-[15px] font-semibold leading-tight">AquaShield 3D</p>
             <p className="text-[11px] text-cmd-muted">Dam Break Emergency Action Plan Platform</p>
           </div>
           <div className="ml-auto flex items-center gap-2">
@@ -44,7 +44,7 @@ export default function Landing() {
               Dam-break readiness, modelled on your dam's own terrain.
             </h1>
             <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-cmd-muted">
-              DamSafe Twin runs real LISFLOOD-FP hydraulic simulations over surveyed
+              AquaShield 3D runs real LISFLOOD-FP hydraulic simulations over surveyed
               terrain, then turns depth and arrival grids into evacuation priorities,
               alerts and EAP reports — a decision-support prototype for dam officials.
             </p>
@@ -90,3 +90,4 @@ export default function Landing() {
     </div>
   );
 }
+

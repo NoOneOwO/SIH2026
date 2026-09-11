@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — Evacuation Planner
+ * AquaShield 3D — Evacuation Planner
  * Village-wise evacuation priority list, road passability, and shelter allocation.
  */
 
@@ -236,3 +236,4 @@ export default function EvacuationPlanner() {
     </motion.div>
   );
 }
+

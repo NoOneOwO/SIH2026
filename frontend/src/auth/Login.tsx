@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — official sign in.
+ * AquaShield 3D — official sign in.
  */
 
 import { useState } from 'react';
@@ -66,7 +66,7 @@ export default function Login() {
           </span>
           <div>
             <p className="text-base font-semibold">Official sign in</p>
-            <p className="text-xs text-cmd-muted">DamSafe Twin operations portal</p>
+            <p className="text-xs text-cmd-muted">AquaShield 3D operations portal</p>
           </div>
         </div>
 
@@ -99,3 +99,4 @@ export default function Login() {
     </div>
   );
 }
+

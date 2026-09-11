@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — auth context (local official accounts + dev fallback).
+ * AquaShield 3D — auth context (local official accounts + dev fallback).
  * A stored JWT means a verified official/admin; otherwise the app runs in
  * the historical dev-operator mode so nothing breaks without login.
  */
@@ -92,3 +92,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   return useContext(AuthContext);
 }
+

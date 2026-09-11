@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — Layout (command-centre shell).
+ * AquaShield 3D — Layout (command-centre shell).
  * Dark ops chrome: Sidebar rail + TopBar + content outlet.
  * Routes, i18n and auth behaviour unchanged — presentation only.
  */
@@ -29,3 +29,4 @@ export default function Layout() {
     </div>
   );
 }
+

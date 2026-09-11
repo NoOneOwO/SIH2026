@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — QuickAction.
+ * AquaShield 3D — QuickAction.
  * Operational tool entry: tinted icon tile, title, description,
  * chevron affordance. Flat panel, no gradient buttons.
  */
@@ -43,3 +43,4 @@ export default function QuickAction({ icon: Icon, title, description, tone, onCl
     </button>
   );
 }
+

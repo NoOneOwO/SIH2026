@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — Scenario Manager
+ * AquaShield 3D — Scenario Manager
  * Create, configure, submit, and approve dam-break scenarios.
  */
 
@@ -197,3 +197,4 @@ export default function ScenarioManager() {
     </motion.div>
   );
 }
+

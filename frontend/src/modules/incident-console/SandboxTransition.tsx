@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — Sandbox handoff card.
+ * AquaShield 3D — Sandbox handoff card.
  *
  * Compact, non-blocking status card docked bottom-left while the sandbox
  * engine pre-computes the likely case in the background. No backdrop blur,
@@ -120,3 +120,4 @@ export default function SandboxTransition({ damName, onDone }: SandboxTransition
     </motion.div>
   );
 }
+

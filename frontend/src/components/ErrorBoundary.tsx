@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — Error Boundary
+ * AquaShield 3D — Error Boundary
  * Catches rendering errors and shows a recovery UI instead of a white screen.
  */
 
@@ -27,7 +27,7 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('DamSafe ErrorBoundary caught:', error, errorInfo);
+    console.error('AquaShield ErrorBoundary caught:', error, errorInfo);
   }
 
   render() {
@@ -58,3 +58,4 @@ export default class ErrorBoundary extends Component<Props, State> {
     return this.props.children;
   }
 }
+

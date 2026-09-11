@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — Command-centre Sidebar.
+ * AquaShield 3D — Command-centre Sidebar.
  * Fixed 288px rail: logo, nav (subtle dark-teal active state),
  * language selector + system/version footer.
  */
@@ -34,7 +34,7 @@ function SidebarBody({ onNavigate }: { onNavigate: () => void }) {
           </div>
           <div className="min-w-0">
             <p className="truncate text-[17px] font-semibold leading-tight text-cmd-ink">
-              DamSafe Twin
+              AquaShield 3D
             </p>
             <p className="mt-0.5 text-xs text-cmd-muted">EAP Platform v1.0</p>
           </div>
@@ -126,3 +126,4 @@ export default function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
     </>
   );
 }
+

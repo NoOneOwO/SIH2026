@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — StatCard.
+ * AquaShield 3D — StatCard.
  * Compact KPI card: tinted semantic icon, strong value, label,
  * understated sparkline, caption + directional arrow.
  */
@@ -70,3 +70,4 @@ export default function StatCard({ icon: Icon, value, label, caption, spark, ton
     </div>
   );
 }
+

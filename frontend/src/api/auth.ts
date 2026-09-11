@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — auth API (local official accounts).
+ * AquaShield 3D — auth API (local official accounts).
  * Multipart register (with document upload); JSON login.
  */
 
@@ -61,3 +61,4 @@ export const authApi = {
     } catch { /* noop */ }
   },
 };
+

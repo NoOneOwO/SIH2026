@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — Local 3D Dam View (true 3D, NO globe).
+ * AquaShield 3D — Local 3D Dam View (true 3D, NO globe).
  *
  * Renders only the dam site + nearby terrain as a real 3D mesh in Three.js:
  *   - Textured terrain GLB from the terrain-pipeline (real DEM + satellite)
@@ -791,3 +791,4 @@ export default function Local3DView({ dam, slug, hazardColor, onShowMap, onClose
     </div>
   );
 }
+

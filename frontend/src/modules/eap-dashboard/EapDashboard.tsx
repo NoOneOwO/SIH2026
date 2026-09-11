@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — EAP Dashboard
+ * AquaShield 3D — EAP Dashboard
  * Planning/EAP mode: overview of all approved scenarios, EAP packages, and preparedness.
  */
 
@@ -148,3 +148,4 @@ export default function EapDashboard() {
     </motion.div>
   );
 }
+

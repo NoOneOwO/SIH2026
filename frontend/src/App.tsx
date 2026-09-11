@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — App Root
+ * AquaShield 3D — App Root
  * Public: landing, login, register. Operations shell: modules + assistant + admin.
  */
 
@@ -43,3 +43,4 @@ export default function App() {
     </Routes>
   );
 }
+

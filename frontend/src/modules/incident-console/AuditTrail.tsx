@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — Audit Trail
+ * AquaShield 3D — Audit Trail
  * Read-only view of the immutable audit log.
  */
 
@@ -137,3 +137,4 @@ export default function AuditTrail() {
     </motion.div>
   );
 }
+

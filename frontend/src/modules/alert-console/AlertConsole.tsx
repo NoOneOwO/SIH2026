@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — Alert Console
+ * AquaShield 3D — Alert Console
  * Draft → Approve → Dispatch workflow with human authorization gate.
  */
 
@@ -187,3 +187,4 @@ export default function AlertConsole() {
     </motion.div>
   );
 }
+

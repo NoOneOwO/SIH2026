@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — i18n Configuration
+ * AquaShield 3D — i18n Configuration
  * Bilingual support: English + Hindi for key screens and alert templates.
  */
 
@@ -238,3 +238,4 @@ i18n
   });
 
 export default i18n;
+

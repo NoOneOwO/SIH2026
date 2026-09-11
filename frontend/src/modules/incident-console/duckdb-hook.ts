@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — DuckDB-WASM Spatial Query Hook
+ * AquaShield 3D — DuckDB-WASM Spatial Query Hook
  *
  * Uses DuckDB-WASM (from GeoLibre's stack) for client-side spatial SQL:
  * - Village proximity analysis
@@ -184,3 +184,4 @@ export function useSpatialQueries(duckdb: DuckDBState) {
 
   return { queryNearestVillages, computeEvacuationZones };
 }
+

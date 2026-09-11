@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — CesiumJS 3D Digital Twin Viewer
+ * AquaShield 3D — CesiumJS 3D Digital Twin Viewer
  *
  * Consumes shared state from IncidentConsole.
  * Loads dam 3D tileset from API (Path A/B pipeline), animated water, village labels.
@@ -322,3 +322,4 @@ export default function DigitalTwin({ timeMinutes, impactData, cameraTarget, onC
     </div>
   );
 }
+

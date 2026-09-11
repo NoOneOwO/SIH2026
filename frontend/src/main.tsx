@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — React Entry Point
+ * AquaShield 3D — React Entry Point
  */
 
 import React from 'react';
@@ -19,3 +19,4 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </BrowserRouter>
   </React.StrictMode>,
 );
+

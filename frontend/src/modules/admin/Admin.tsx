@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — admin console.
+ * AquaShield 3D — admin console.
  * Verify officials (documents), manage roles, and review per-dam simulations.
  */
 
@@ -220,3 +220,4 @@ export default function Admin() {
     </div>
   );
 }
+

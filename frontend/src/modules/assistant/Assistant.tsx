@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — AI assistant tab.
+ * AquaShield 3D — AI assistant tab.
  * Dam-aware chatbot (curated KB + optional LLM) and simulation explainer
  * (real result numbers → explanation + phased preparedness plan).
  */
@@ -344,3 +344,4 @@ export default function Assistant() {
     </div>
   );
 }
+

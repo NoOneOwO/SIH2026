@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — MapLibre 2D Map Viewer
+ * AquaShield 3D — MapLibre 2D Map Viewer
  *
  * Consumes shared state from IncidentConsole. Does NOT own time/layer/simRun state.
  * Reads impactData from the shared hook, renders layers accordingly.
@@ -260,3 +260,4 @@ export default function MapViewer({
     </div>
   );
 }
+

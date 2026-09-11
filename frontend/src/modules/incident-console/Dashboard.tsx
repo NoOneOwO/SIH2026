@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — Dashboard (command-centre landing).
+ * AquaShield 3D — Dashboard (command-centre landing).
  * Presentation rebuilt from scratch; data, routes and API usage unchanged.
  */
 
@@ -151,3 +151,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

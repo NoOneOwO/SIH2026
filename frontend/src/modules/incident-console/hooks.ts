@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — useImpactData Hook
+ * AquaShield 3D — useImpactData Hook
  *
  * Single data-fetching hook consumed by BOTH the 2D MapLibre and 3D CesiumJS viewers.
  * Never let the 3D viewer fetch impact data independently — that causes drift.
@@ -233,3 +233,4 @@ export function useImpactData(simRunId: string, currentTimeMinutes: number) {
 
   return { data, loading, error };
 }
+

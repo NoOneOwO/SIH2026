@@ -1,5 +1,5 @@
-﻿/**
- * DamSafe Twin â€” Indian Dams Dataset (CURATED: 50 dams)
+/**
+ * AquaShield 3D â€” Indian Dams Dataset (CURATED: 50 dams)
  *
  * 30 dams ship a real-DEM local 3D terrain model (see
  * 3d-assets/terrain-pipeline/curate.py); 20 more are list-only
@@ -86,4 +86,5 @@ export const INDIA_DAMS: DamPoint[] = [
   { id: 'd20', name: 'Damanganga', state: 'Gujarat', lon: 72.92, lat: 20.25, height_m: 35, type: 'earthfill', river: 'Damanganga', capacity_mcm: 1055, year_built: 1976 },
   { id: 'd39', name: 'Salaulim Dam', state: 'Goa', lon: 74.05, lat: 15.35, height_m: 33, type: 'earthen', river: 'Salaulim', capacity_mcm: 536, year_built: 1985 },
 ];
+
 

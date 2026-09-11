@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — LISFLOOD-FP run panel (REAL hydraulic engine).
+ * AquaShield 3D — LISFLOOD-FP run panel (REAL hydraulic engine).
  * Command-centre dark theme. Owns scenario inputs, job polling with
  * engine-derived progress, result playback, impact ledger, debug ledger,
  * and a modelled-depth-over-time illustration (recharts).
@@ -476,3 +476,4 @@ export default function LisfloodPanel({ dam, onFlood, onClose, initialJobId }: L
     </motion.div>
   );
 }
+

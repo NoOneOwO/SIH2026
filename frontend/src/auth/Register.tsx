@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — official registration.
+ * AquaShield 3D — official registration.
  * Collects identity + posting + dam assignment + verification document.
  * Accounts start `pending` until an admin verifies the document.
  */
@@ -155,3 +155,4 @@ export default function Register() {
     </div>
   );
 }
+

@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — Scenario Simulation Sandbox panel.
+ * AquaShield 3D — Scenario Simulation Sandbox panel.
  *
  * Path: Dam → View Terrain → Enter Simulation Sandbox. Terrain stays locked
  * as the sim domain (camera/nav untouched); this panel owns scenario inputs,
@@ -625,3 +625,4 @@ export default function SandboxPanel({ dam, autoDemo, onFlood, onClose, onBusyCh
     </motion.div>
   );
 }
+

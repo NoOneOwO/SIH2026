@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — Command-centre navigation definition.
+ * AquaShield 3D — Command-centre navigation definition.
  * Single source of truth for Sidebar + TopBar search.
  */
 
@@ -26,3 +26,4 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/assistant', labelKey: 'nav.assistant', fallbackLabel: 'AI Assistant', icon: Bot },
   { path: '/admin', labelKey: 'nav.admin', fallbackLabel: 'Admin', icon: ShieldCheck, adminOnly: true },
 ];
+

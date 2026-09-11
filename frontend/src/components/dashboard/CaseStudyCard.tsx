@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — CaseStudyCard.
+ * AquaShield 3D — CaseStudyCard.
  * Demo dam dossier: reservoir thumbnail + key parameters.
  * Data preserved from the previous dashboard; presentation rebuilt.
  */
@@ -67,3 +67,4 @@ export default function CaseStudyCard({ dam, onViewDetails }: CaseStudyCardProps
     </section>
   );
 }
+

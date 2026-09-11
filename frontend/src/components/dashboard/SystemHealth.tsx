@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — SystemHealth.
+ * AquaShield 3D — SystemHealth.
  * Infrastructure status ledger: status dot, service name,
  * thin status bar, uptime percentage. Muted semantic colors.
  */
@@ -58,3 +58,4 @@ export default function SystemHealth({ services }: { services: HealthService[] }
     </section>
   );
 }
+

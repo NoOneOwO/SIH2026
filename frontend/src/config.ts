@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — feature flags (TEST MODE).
+ * AquaShield 3D — feature flags (TEST MODE).
  *
  * LISFLOOD-FP integration phase: the legacy sandbox/mock flood overlay is
  * DISABLED so it can never masquerade as engine output. The only water
@@ -14,3 +14,4 @@ export const FEATURES = {
   /** Real LISFLOOD-FP jobs: run panel + result overlay. */
   lisflood: true,
 } as const;
+

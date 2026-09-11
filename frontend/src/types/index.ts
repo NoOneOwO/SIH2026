@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — TypeScript Type Definitions
+ * AquaShield 3D — TypeScript Type Definitions
  * All shared domain types for the frontend.
  */
 
@@ -184,3 +184,4 @@ export interface GeoJsonFeatureCollection {
   type: 'FeatureCollection';
   features: GeoJsonFeature[];
 }
+

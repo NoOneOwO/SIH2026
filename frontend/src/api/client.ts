@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — API Client
+ * AquaShield 3D — API Client
  * Centralized HTTP client for all backend API calls.
  */
 
@@ -192,3 +192,4 @@ export const sandboxApi = {
     }),
   demoTehri: () => apiFetch<any>('/sandbox/demo/tehri'),
 };
+

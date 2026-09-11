@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — Enhanced 2D Map with deck.gl
+ * AquaShield 3D — Enhanced 2D Map with deck.gl
  *
  * Uses the GeoLibre stack: MapLibre GL JS (base) + deck.gl (WebGL overlay).
  * deck.gl provides GPU-accelerated layers for flood visualization:
@@ -502,3 +502,4 @@ export default function EnhancedMap({
     </div>
   );
 }
+

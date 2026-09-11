@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — HeroPanel.
+ * AquaShield 3D — HeroPanel.
  * Wide command header: mission copy left, aerial dam imagery
  * with dark overlay + readiness status card right.
  *
@@ -34,7 +34,7 @@ export default function HeroPanel() {
             Simulate&nbsp;&nbsp;/&nbsp;&nbsp;Plan&nbsp;&nbsp;/&nbsp;&nbsp;Save Lives
           </p>
           <h1 className="mt-3 text-3xl font-bold leading-tight text-white md:text-4xl">
-            DamSafe Twin
+            AquaShield 3D
           </h1>
           <p className="mt-1 text-[15px] font-medium text-cmd-ink/90">
             Dam Break Emergency Action Plan Platform
@@ -60,3 +60,4 @@ export default function HeroPanel() {
     </section>
   );
 }
+

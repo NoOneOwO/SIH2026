@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — Incident Console
+ * AquaShield 3D — Incident Console
  *
  * Auto-detects GeoLibre:
  *   - If GeoLibre is running → embed it with all 138 dams loaded via ?data= GeoJSON
@@ -248,7 +248,7 @@ function InlineMapLibre({ onDamClick, selectedDam, onMapReady, focusPoint }: {
       // ── Map style: satellite + terrain DEM (must be in style!) ──
       const style: any = {
         version: 8,
-        name: 'DamSafe Satellite 3D',
+        name: 'AquaShield Satellite 3D',
         glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
         sources: {
           // Esri World Imagery — high-res satellite basemap
@@ -487,7 +487,7 @@ function InlineMapLibre({ onDamClick, selectedDam, onMapReady, focusPoint }: {
         if (!container) { console.error('No container found'); return; }
 
         const style = next ? {
-          version: 8, name: 'DamSafe Buildings',
+          version: 8, name: 'AquaShield Buildings',
           glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
           sources: {
             satellite: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256, maxzoom: 18 },
@@ -495,7 +495,7 @@ function InlineMapLibre({ onDamClick, selectedDam, onMapReady, focusPoint }: {
           },
           layers: [{ id: 'satellite', type: 'raster', source: 'satellite' }],
         } : {
-          version: 8, name: 'DamSafe Satellite 3D',
+          version: 8, name: 'AquaShield Satellite 3D',
           glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
           sources: {
             satellite: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256, maxzoom: 18 },
@@ -1157,3 +1157,4 @@ export default function IncidentConsole() {
     </div>
   );
 }
+

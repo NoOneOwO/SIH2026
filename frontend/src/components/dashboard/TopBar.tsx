@@ -1,5 +1,5 @@
 /**
- * DamSafe Twin — Command-centre TopBar.
+ * AquaShield 3D — Command-centre TopBar.
  * Search (Ctrl+K focuses, filters existing routes), System Online,
  * current operator, settings entry.
  */
@@ -168,3 +168,4 @@ export default function TopBar({ onOpenMobileNav }: TopBarProps) {
     </header>
   );
 }
+
