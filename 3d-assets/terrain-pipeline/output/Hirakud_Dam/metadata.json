@@ -1,0 +1,31 @@
+{
+  "dam": "Hirakud Dam",
+  "lat": 21.5222,
+  "lon": 83.8717,
+  "bbox_radius_km": 5.0,
+  "bbox_wsen": [
+    83.82341800276984,
+    21.476967504975576,
+    83.91998199723017,
+    21.567432495024427
+  ],
+  "crs": "EPSG:4326",
+  "elevation_min_m": 600.0285034179688,
+  "elevation_max_m": 986.3515014648438,
+  "elevation_mean_m": 733.5432363450527,
+  "nodata_filled": false,
+  "dem_grid": {
+    "rows": 256,
+    "cols": 256
+  },
+  "mesh_grid": {
+    "rows": 64,
+    "cols": 64
+  },
+  "vertical_exaggeration": 1.5,
+  "sources": {
+    "dem": "SYNTHETIC_DEMO",
+    "texture": "SYNTHETIC_DEMO"
+  },
+  "created_utc": "2026-09-06T11:09:52.334826+00:00"
+}

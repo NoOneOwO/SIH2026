@@ -1,0 +1,8 @@
+{
+  "mesh_vertices": 16384,
+  "max_radial_error_m": 10.930642717517912,
+  "mean_radial_error_m": 3.591299591559334,
+  "center_radius_m": 6377895.084324937,
+  "passes": true,
+  "tolerance_m": 50.0
+}

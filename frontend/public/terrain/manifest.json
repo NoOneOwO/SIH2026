@@ -1,0 +1,202 @@
+﻿{
+    "d60":  {
+                "name":  "Subansiri Dam (under constr)",
+                "file":  "d60"
+            },
+    "d84":  {
+                "name":  "Tehri Pump Storage",
+                "file":  "d84"
+            },
+    "d4":  {
+               "name":  "Tehri Dam",
+               "file":  "d4"
+           },
+    "d1":  {
+               "name":  "Bhakra Dam",
+               "file":  "d1"
+           },
+    "d52":  {
+                "name":  "Idukki Dam",
+                "file":  "d52"
+            },
+    "d3":  {
+               "name":  "Nathpa Jhakri Dam",
+               "file":  "d3"
+           },
+    "d16":  {
+                "name":  "Sardar Sarovar",
+                "file":  "d16"
+            },
+    "d88":  {
+                "name":  "Sardar Vallabhbhai Patel",
+                "file":  "d88"
+            },
+    "d118":  {
+                 "name":  "Tipaimukh Dam (under constr)",
+                 "file":  "d118"
+             },
+    "d9":  {
+               "name":  "Ranjit Sagar Dam",
+               "file":  "d9"
+           },
+    "d41":  {
+                "name":  "Srisailam Dam",
+                "file":  "d41"
+            },
+    "d122":  {
+                 "name":  "Srisailam Dam (AP)",
+                 "file":  "d122"
+             },
+    "d79":  {
+                "name":  "Baglihar Dam",
+                "file":  "d79"
+            },
+    "d80":  {
+                "name":  "Ratle Dam",
+                "file":  "d80"
+            },
+    "d78":  {
+                "name":  "Dulhasti Dam",
+                "file":  "d78"
+            },
+    "d2":  {
+               "name":  "Pong Dam",
+               "file":  "d2"
+           },
+    "d90":  {
+                "name":  "Pong Dam (Beas)",
+                "file":  "d90"
+            },
+    "d40":  {
+                "name":  "Nagarjuna Sagar",
+                "file":  "d40"
+            },
+    "d85":  {
+                "name":  "Tanakpur Dam",
+                "file":  "d85"
+            },
+    "d77":  {
+                "name":  "Salal Dam",
+                "file":  "d77"
+            },
+    "d131":  {
+                 "name":  "Idamalayar Dam",
+                 "file":  "d131"
+             },
+    "d112":  {
+                 "name":  "Kishanganga Dam",
+                 "file":  "d112"
+             },
+    "d28":  {
+                "name":  "Koyna Dam",
+                "file":  "d28"
+            },
+    "d25":  {
+                "name":  "Narmada Sagar",
+                "file":  "d25"
+            },
+    "d110":  {
+                 "name":  "Sainj Dam",
+                 "file":  "d110"
+             },
+    "d83":  {
+                "name":  "Parbati Dam",
+                "file":  "d83"
+            },
+    "d48":  {
+                "name":  "Aliyar Dam",
+                "file":  "d48"
+            },
+    "d17":  {
+                "name":  "Ukai Dam",
+                "file":  "d17"
+            },
+    "d5":  {
+               "name":  "Dhauliganga Dam",
+               "file":  "d5"
+           },
+    "d81":  {
+                "name":  "Kol Dam",
+                "file":  "d81"
+            },
+    "d128":  {
+                 "name":  "Parambikulam Dam",
+                 "file":  "d128"
+             },
+    "d21":  {
+                "name":  "Bargi Dam",
+                "file":  "d21"
+            },
+    "d26":  {
+                "name":  "Tehri Dam (MP branch)",
+                "file":  "d26"
+            },
+    "d38":  {
+                "name":  "Gerusoppa Dam",
+                "file":  "d38"
+            },
+    "d7":  {
+               "name":  "Hirakud Dam",
+               "file":  "d7"
+           },
+    "d42":  {
+                "name":  "Polavaram Dam",
+                "file":  "d42"
+            },
+    "d36":  {
+                "name":  "Linganamakki Dam",
+                "file":  "d36"
+            },
+    "d44":  {
+                "name":  "Somasila Dam",
+                "file":  "d44"
+            },
+    "d13":  {
+                "name":  "Rana Pratap Sagar",
+                "file":  "d13"
+            },
+    "d49":  {
+                "name":  "Periyar Dam",
+                "file":  "d49"
+            },
+    "d31":  {
+                "name":  "Ghatprabha Dam",
+                "file":  "d31"
+            },
+    "d33":  {
+                "name":  "Almatti Dam",
+                "file":  "d33"
+            },
+    "d35":  {
+                "name":  "Tungabhadra Dam",
+                "file":  "d35"
+            },
+    "d46":  {
+                "name":  "Mettur Dam",
+                "file":  "d46"
+            },
+    "d47":  {
+                "name":  "Bhavanisagar Dam",
+                "file":  "d47"
+            },
+    "d24":  {
+                "name":  "Omkareshwar Dam",
+                "file":  "d24"
+            },
+    "d50":  {
+                "name":  "Vaigai Dam",
+                "file":  "d50"
+            },
+    "d45":  {
+                "name":  "Priyadarshini Jurala",
+                "file":  "d45"
+            },
+    "d20":  {
+                "name":  "Damanganga",
+                "file":  "d20"
+            },
+    "d39":  {
+                "name":  "Salaulim Dam",
+                "file":  "d39"
+            }
+}

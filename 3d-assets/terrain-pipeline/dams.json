@@ -1,0 +1,33 @@
+{
+  "_comment": "Dam registry for the terrain-pipeline. Extend by appending entries: {name, lat, lon, bbox_radius_km}. Coordinates are WGS84 dam-site centers (verified against public data).",
+  "defaults": {
+    "bbox_radius_km": 5.0,
+    "crs": "EPSG:4326"
+  },
+  "dams": [
+    {
+      "name": "Tehri Dam",
+      "lat": 30.3783,
+      "lon": 78.4808,
+      "bbox_radius_km": 5.0,
+      "state": "Uttarakhand",
+      "notes": "Rockfill embankment on Bhagirathi river"
+    },
+    {
+      "name": "Bhakra Dam",
+      "lat": 31.4108,
+      "lon": 76.4333,
+      "bbox_radius_km": 5.0,
+      "state": "Himachal Pradesh / Punjab",
+      "notes": "Concrete gravity dam on Sutlej river"
+    },
+    {
+      "name": "Hirakud Dam",
+      "lat": 21.5222,
+      "lon": 83.8717,
+      "bbox_radius_km": 5.0,
+      "state": "Odisha",
+      "notes": "Earthen + concrete composite on Mahanadi river"
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Terrain GLB placement test (CesiumJS)</title>
+<!--
+  Minimal "does it sit on the globe?" check.
+  1. Serve this folder over HTTP, e.g.:  python -m http.server 8077
+  2. Copy a pipeline output next to this file, e.g. ./Tehri_Dam/{*.glb,transform.json}
+     (or adjust DAM below to point at output/<name>/).
+  3. Open http://localhost:8077/cesium_test.html?dam=Tehri_Dam
+  Expected: textured terrain patch sitting on the globe at the dam site.
+-->
+<script src="https://cesium.com/downloads/cesiumjs/releases/1.121/Build/Cesium/Cesium.js"></script>
+<link href="https://cesium.com/downloads/cesiumjs/releases/1.121/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
+<style>html,body,#cesium{height:100%;margin:0}#info{position:absolute;top:8px;left:8px;background:#000a;color:#fff;padding:8px 12px;font:13px sans-serif;border-radius:8px;z-index:1}</style>
+</head>
+<body>
+<div id="cesium"></div>
+<div id="info">loading…</div>
+<script>
+(function () {
+  const dam = new URLSearchParams(location.search).get('dam') || 'Tehri_Dam';
+  const viewer = new Cesium.Viewer('cesium', { terrainProvider: new Cesium.EllipsoidTerrainProvider() });
+  const info = document.getElementById('info');
+  (async () => {
+    const base = './output/' + dam + '/';
+    const glbName = dam + '.glb';
+    const t = await fetch(base + 'transform.json').then(r => { if (!r.ok) throw new Error('transform.json not found under ' + base); return r.json(); });
+    const modelMatrix = Cesium.Matrix4.fromArray(t.modelMatrix_columnMajor);
+    const model = await Cesium.Model.fromGltf({ url: base + glbName, modelMatrix });
+    viewer.scene.primitives.add(model);
+    await viewer.zoomTo(model);
+    // Sanity: compare model center against globe surface + center elevation
+    const c = Cesium.Cartesian3.fromArray(t.center_ecef_m);
+    const carto = Cesium.Cartographic.fromCartesian(c);
+    info.textContent = `dam=${t.dam} lat=${t.lat} lon=${t.lon} centerElev=${t.center_elevation_m.toFixed(1)}m ` +
+      `surface≈${carto.height.toFixed(1)}m exag=${t.vertical_exaggeration} — model should hug the surface`;
+  })().catch(e => { info.textContent = 'ERROR: ' + e.message; console.error(e); });
+})();
+</script>
+</body>
+</html>

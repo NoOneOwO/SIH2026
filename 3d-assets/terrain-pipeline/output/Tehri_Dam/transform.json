@@ -1,0 +1,55 @@
+{
+  "dam": "Tehri Dam",
+  "lat": 30.3783,
+  "lon": 78.4808,
+  "center_elevation_m": 1171.9625560493118,
+  "vertical_exaggeration": 1.0,
+  "local_frame": "Y-up: x=east(m), y=up-relative-to-center(m, exaggerated), z=south(m, i.e. -north)",
+  "placement": "Cesium: Model.fromGltf({url, modelMatrix}) with modelMatrix below; or entity position=center_ecef + orientation from matrix rotation.",
+  "center_ecef_m": [
+    1099963.0827289503,
+    5397232.97737899,
+    3207215.155416433
+  ],
+  "modelMatrix_columnMajor": [
+    -0.9798578407661002,
+    0.19969629913745515,
+    0.0,
+    0.0,
+    0.1722790478227548,
+    0.8453285140384573,
+    0.5057070624727508,
+    0.0,
+    0.10098782882348216,
+    0.4955210302947169,
+    -0.8627052607728675,
+    0.0,
+    1099963.0827289503,
+    5397232.97737899,
+    3207215.155416433,
+    1.0
+  ],
+  "modelMatrix_rowMajor": [
+    -0.9798578407661002,
+    0.1722790478227548,
+    0.10098782882348216,
+    1099963.0827289503,
+    0.19969629913745515,
+    0.8453285140384573,
+    0.4955210302947169,
+    5397232.97737899,
+    0.0,
+    0.5057070624727508,
+    -0.8627052607728675,
+    3207215.155416433,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+  ],
+  "mesh_extent_m": {
+    "width_east_west": 10003.786419712496,
+    "height_north_south": 10010.011111111302
+  },
+  "glb": "Tehri_Dam.glb"
+}

@@ -1,0 +1,31 @@
+{
+  "dam": "Tehri Dam",
+  "lat": 30.3783,
+  "lon": 78.4808,
+  "bbox_radius_km": 5.0,
+  "bbox_wsen": [
+    78.42847221111114,
+    30.333194455555553,
+    78.53263887777781,
+    30.42375001111111
+  ],
+  "crs": "EPSG:4326",
+  "elevation_min_m": 611.0,
+  "elevation_max_m": 1943.412109375,
+  "elevation_mean_m": 1171.3859821927124,
+  "nodata_filled": false,
+  "dem_grid": {
+    "rows": 326,
+    "cols": 375
+  },
+  "mesh_grid": {
+    "rows": 109,
+    "cols": 125
+  },
+  "vertical_exaggeration": 1.0,
+  "sources": {
+    "dem": "OpenTopography:COP30",
+    "texture": "Esri:World_Imagery"
+  },
+  "created_utc": "2026-09-06T11:12:31.904863+00:00"
+}

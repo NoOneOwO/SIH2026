@@ -1,0 +1,55 @@
+{
+  "dam": "Hirakud Dam",
+  "lat": 21.5222,
+  "lon": 83.8717,
+  "center_elevation_m": 732.4778850674629,
+  "vertical_exaggeration": 1.5,
+  "local_frame": "Y-up: x=east(m), y=up-relative-to-center(m, exaggerated), z=south(m, i.e. -north)",
+  "placement": "Cesium: Model.fromGltf({url, modelMatrix}) with modelMatrix below; or entity position=center_ecef + orientation from matrix rotation.",
+  "center_ecef_m": [
+    633782.1509810195,
+    5902853.993734306,
+    2325546.5209052186
+  ],
+  "modelMatrix_columnMajor": [
+    -0.994285336024315,
+    0.10675518988327874,
+    0.0,
+    0.0,
+    0.09931173683979462,
+    0.9249592806014953,
+    0.3668617016738426,
+    0.0,
+    0.03916439062309382,
+    0.36476521032322856,
+    -0.930275492445637,
+    0.0,
+    633782.1509810195,
+    5902853.993734306,
+    2325546.5209052186,
+    1.0
+  ],
+  "modelMatrix_rowMajor": [
+    -0.994285336024315,
+    0.09931173683979462,
+    0.03916439062309382,
+    633782.1509810195,
+    0.10675518988327874,
+    0.9249592806014953,
+    0.36476521032322856,
+    5902853.993734306,
+    0.0,
+    0.3668617016738426,
+    -0.930275492445637,
+    2325546.5209052186,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+  ],
+  "mesh_extent_m": {
+    "width_east_west": 9999.999999999472,
+    "height_north_south": 9999.999999999965
+  },
+  "glb": "Hirakud_Dam.glb"
+}

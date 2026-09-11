@@ -1,0 +1,136 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Inter', system-ui, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #E8EEF0;
+  background-color: #071018;
+
+  /* Command-centre design tokens (mirrors tailwind `cmd` palette). */
+  --cmd-bg: #071018;
+  --cmd-panel: #101B23;
+  --cmd-panel-2: #14222B;
+  --cmd-border: #263742;
+  --cmd-track: #1E2E38;
+  --cmd-ink: #E8EEF0;
+  --cmd-muted: #91A2AD;
+  --cmd-teal: #65BFA9;
+  --cmd-green: #55C99A;
+  --cmd-amber: #D8B24C;
+  --cmd-red: #D96B70;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Scrollbar styling (dark command-centre chrome) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0B141B;
+}
+::-webkit-scrollbar-thumb {
+  background: #263742;
+  border-radius: 4px;
+}
+
+/* Hazard color classes */
+.hazard-green { @apply bg-green-100 text-green-800 border-green-300; }
+.hazard-yellow { @apply bg-yellow-100 text-yellow-800 border-yellow-300; }
+.hazard-orange { @apply bg-orange-100 text-orange-800 border-orange-300; }
+
+/* Cinematic sandbox-transition motion (plain CSS: no tailwind config change) */
+@keyframes damsafe-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes damsafe-fade-up {
+  from { opacity: 0; transform: translateY(18px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes damsafe-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.animate-fade-in { animation: damsafe-fade-in 0.6s ease-out both; }
+.animate-fade-up { animation: damsafe-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-shimmer { animation: damsafe-shimmer 2.2s linear infinite; }
+.hazard-red { @apply bg-red-100 text-red-800 border-red-300; }
+
+/* Road status classes */
+.road-safe { @apply bg-green-50 text-green-700; }
+.road-restricted { @apply bg-yellow-50 text-yellow-700; }
+.road-impassable { @apply bg-red-50 text-red-700; }
+
+/* Priority score colors */
+.priority-critical { @apply text-red-600 font-bold; }
+.priority-high { @apply text-orange-500 font-semibold; }
+.priority-medium { @apply text-yellow-600; }
+.priority-low { @apply text-green-600; }
+
+/* Map container */
+.map-container {
+  width: 100%;
+  height: 500px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+/* Cesium container */
+.cesium-container {
+  width: 100%;
+  height: 600px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Pulse animation for active alerts */
+@keyframes pulse-danger {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); }
+  50% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+}
+.animate-pulse-danger {
+  animation: pulse-danger 2s infinite;
+}
+
+/* Card base (legacy light pages — do not restyle, other modules depend on it) */
+.card {
+  @apply bg-white rounded-lg border border-slate-200 shadow-sm p-6;
+}
+
+/* Command-centre card: flat charcoal panel, 1px border, restrained radius. */
+.cmd-card {
+  border-radius: 0.75rem;
+  border: 1px solid var(--cmd-border);
+  background-color: var(--cmd-panel);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+/* Button variants */
+.btn-primary {
+  @apply bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-150;
+}
+.btn-danger {
+  @apply bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-150;
+}
+.btn-success {
+  @apply bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-150;
+}
+.btn-secondary {
+  @apply bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2 px-4 rounded-lg transition-colors duration-150;
+}

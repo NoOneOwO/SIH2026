@@ -1,0 +1,55 @@
+{
+  "dam": "Bhakra Dam",
+  "lat": 31.4108,
+  "lon": 76.4333,
+  "center_elevation_m": 732.4778850674629,
+  "vertical_exaggeration": 1.0,
+  "local_frame": "Y-up: x=east(m), y=up-relative-to-center(m, exaggerated), z=south(m, i.e. -north)",
+  "placement": "Cesium: Model.fromGltf({url, modelMatrix}) with modelMatrix below; or entity position=center_ecef + orientation from matrix rotation.",
+  "center_ecef_m": [
+    1278215.3158360384,
+    5296977.053361963,
+    3305231.9136225204
+  ],
+  "modelMatrix_columnMajor": [
+    -0.9720974997488478,
+    0.23457717489568078,
+    0.0,
+    0.0,
+    0.20020049374226964,
+    0.8296391134469604,
+    0.5211705131185886,
+    0.0,
+    0.12225470660629086,
+    0.5066285527454041,
+    -0.853452574110423,
+    0.0,
+    1278215.3158360384,
+    5296977.053361963,
+    3305231.9136225204,
+    1.0
+  ],
+  "modelMatrix_rowMajor": [
+    -0.9720974997488478,
+    0.20020049374226964,
+    0.12225470660629086,
+    1278215.3158360384,
+    0.23457717489568078,
+    0.8296391134469604,
+    0.5066285527454041,
+    5296977.053361963,
+    0.0,
+    0.5211705131185886,
+    -0.853452574110423,
+    3305231.9136225204,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+  ],
+  "mesh_extent_m": {
+    "width_east_west": 10000.00000000108,
+    "height_north_south": 9999.999999999965
+  },
+  "glb": "Bhakra_Dam.glb"
+}

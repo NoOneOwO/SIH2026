@@ -1,0 +1,22 @@
+# DamSafe Twin — Render blueprint (backend API + engine, one Docker service).
+# One-click: Render Dashboard → New → Blueprint → point at this repo.
+# Then set the env vars below in the Render dashboard (never commit secrets).
+services:
+  - type: web
+    name: damsafe-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: starter # free tier sleeps; starter keeps sims responsive
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: CORS_ORIGINS
+        value: https://YOUR-APP.vercel.app # ← your Vercel frontend URL
+      - key: LISFLOOD_MODE
+        value: direct
+      - key: DAMSAFE_AUTH_SECRET
+        generateValue: true # Render generates a long random secret
+      - key: GROQ_API_KEY
+        sync: false # set manually in dashboard (assistant LLM; optional)

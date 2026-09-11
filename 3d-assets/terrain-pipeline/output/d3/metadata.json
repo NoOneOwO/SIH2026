@@ -1,0 +1,31 @@
+{
+  "dam": "d3",
+  "lat": 31.55,
+  "lon": 77.87,
+  "bbox_radius_km": 5.0,
+  "bbox_wsen": [
+    77.8170833222222,
+    31.50486112222222,
+    77.92236109999997,
+    31.595416677777777
+  ],
+  "crs": "EPSG:4326",
+  "elevation_min_m": 1178.7470703125,
+  "elevation_max_m": 3978.561767578125,
+  "elevation_mean_m": 2421.1520867971003,
+  "nodata_filled": false,
+  "dem_grid": {
+    "rows": 326,
+    "cols": 379
+  },
+  "mesh_grid": {
+    "rows": 109,
+    "cols": 127
+  },
+  "vertical_exaggeration": 1.0,
+  "sources": {
+    "dem": "OpenTopography:COP30",
+    "texture": "Esri:World_Imagery"
+  },
+  "created_utc": "2026-09-06T11:38:44.543747+00:00"
+}

@@ -1,0 +1,13 @@
+# Never send local bulk/secrets into the image build context.
+.venv/
+venv/
+__pycache__/
+*.pyc
+sims/
+data/
+.env
+.env.local
+.git/
+.gitignore
+*.log
+.pytest_cache/

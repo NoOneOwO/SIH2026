@@ -1,0 +1,18 @@
+node_modules/
+dist/
+.env
+.env.local
+*.pyc
+__pycache__/
+*.egg-info/
+.venv/
+.vite/
+.DS_Store
+*.log
+*.timestamp-*
+# Regenerable OpenTopography DEM download cache (duplicates output/*.tif)
+3d-assets/terrain-pipeline/cache/
+# LISFLOOD-FP simulation job store (inputs/outputs per run, regenerable)
+backend/sims/
+# Local auth + broadcasts (users, ID documents, official broadcasts — NEVER commit)
+backend/data/
