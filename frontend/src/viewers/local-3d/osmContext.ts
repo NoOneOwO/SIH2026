@@ -1,16 +1,18 @@
 /**
- * OSM context for the exact-terrain dam view (Local3DView).
+ * OSM context (buildings / trees / streets) around any lon/lat.
  *
- * Fetches real surroundings around the dam from OpenStreetMap via the
- * Overpass API (no key, CORS-open) and converts everything into the GLB
- * local frame: x = metres east of the dam anchor, z = metres south.
+ * Fetches real surroundings from OpenStreetMap via the Overpass API
+ * (no key, CORS-open). Two projections:
+ *   - fetchOSMContextGeo: lon/lat rings — for globe viewers (Cesium).
+ *   - fetchOSMContext:     GLB local frame (x = m east, z = m south of the
+ *                          anchor) — for the exact-terrain dam view.
  *
  *   - buildings: footprint rings + height (OSM height tag → levels*3.2 → 5 m default)
  *   - trees:     natural=tree nodes
  *   - roads:     highway ways (arterial → service), decimated
  *
- * Counts are capped and sorted nearest-dam-first so a rural dam site stays
- * fast. A failed fetch resolves to null — the terrain + flood still render.
+ * Counts are capped and sorted nearest-anchor-first. A failed fetch throws
+ * (callers degrade gracefully — terrain + flood still render).
  */
 
 export interface OSMBuilding {
@@ -29,6 +31,14 @@ export interface OSMRoad {
 
 export interface OSMContext {
   buildings: OSMBuilding[];
+  trees: Array<[number, number]>;
+  roads: OSMRoad[];
+  truncated: boolean;
+}
+
+/** Degree-space twin of OSMContext ([lon, lat] everywhere) for globes. */
+export interface OSMContextGeo {
+  buildings: Array<{ ring: Array<[number, number]>; heightM: number }>;
   trees: Array<[number, number]>;
   roads: OSMRoad[];
   truncated: boolean;
@@ -89,19 +99,92 @@ function parseHeight(tags: Record<string, string | undefined>): number {
   return 5;
 }
 
+export async function fetchOSMContextGeo(
+  lon: number,
+  lat: number,
+  signal?: AbortSignal,
+): Promise<OSMContextGeo | null> {
+  const elements = await fetchElements(lon, lat, signal);
+
+  const buildings: OSMContextGeo['buildings'] = [];
+  const trees: Array<[number, number]> = [];
+  const roads: OSMRoad[] = [];
+  let roadPts = 0;
+
+  for (const el of elements) {
+    if (el.type === 'node' && el.tags?.natural === 'tree') {
+      if (typeof el.lon === 'number' && typeof el.lat === 'number') {
+        trees.push([el.lon, el.lat]);
+      }
+    } else if (el.type === 'way' && Array.isArray(el.geometry) && el.geometry.length >= 2) {
+      if (el.tags?.building) {
+        const ring = el.geometry
+          .filter((g: any) => typeof g?.lon === 'number' && typeof g?.lat === 'number')
+          .map((g: any) => [g.lon, g.lat] as [number, number]);
+        if (ring.length >= 3) {
+          buildings.push({ ring, heightM: parseHeight(el.tags ?? {}) });
+        }
+      } else if (el.tags?.highway) {
+        const pts = el.geometry
+          .filter((g: any) => typeof g?.lon === 'number' && typeof g?.lat === 'number')
+          .map((g: any) => [g.lon, g.lat] as [number, number]);
+        if (pts.length >= 2 && roadPts < OSM_MAX_ROAD_PTS) {
+          const keep: Array<[number, number]> = [];
+          const step = Math.max(1, Math.floor(pts.length / 200));
+          for (let i = 0; i < pts.length; i += step) keep.push(pts[i]);
+          if (keep[keep.length - 1] !== pts[pts.length - 1]) keep.push(pts[pts.length - 1]);
+          roads.push({ pts: keep, kind: String(el.tags.highway) });
+          roadPts += keep.length;
+        }
+      }
+    }
+  }
+
+  // Nearest-anchor-first so caps keep the closest structures.
+  const cx0 = lon;
+  const cz0 = lat;
+  const dist2 = (a: number, b: number) => (a - cx0) ** 2 + (b - cz0) ** 2;
+  const centroid = (ring: Array<[number, number]>) => {
+    let x = 0;
+    let y = 0;
+    for (const [a, b] of ring) {
+      x += a;
+      y += b;
+    }
+    return [x / ring.length, y / ring.length] as [number, number];
+  };
+  buildings.sort((p, q) => {
+    const [ax, ay] = centroid(p.ring);
+    const [bx, by] = centroid(q.ring);
+    return dist2(ax, ay) - dist2(bx, by);
+  });
+  trees.sort((p, q) => dist2(p[0], p[1]) - dist2(q[0], q[1]));
+
+  const truncated = buildings.length > OSM_MAX_BUILDINGS || trees.length > OSM_MAX_TREES;
+  return {
+    buildings: buildings.slice(0, OSM_MAX_BUILDINGS),
+    trees: trees.slice(0, OSM_MAX_TREES),
+    roads,
+    truncated,
+  };
+}
+
+async function fetchElements(lon: number, lat: number, signal?: AbortSignal): Promise<any[]> {
+  const s = lat - OSM_HALF_DEG;
+  const w = lon - OSM_HALF_DEG;
+  const n = lat + OSM_HALF_DEG;
+  const e = lon + OSM_HALF_DEG;
+  const ql = `[out:json][timeout:25];(way["building"](${s},${w},${n},${e});node["natural"="tree"](${s},${w},${n},${e});way["highway"~"^(${ROAD_KINDS})$"](${s},${w},${n},${e}););out geom;`;
+  const json = await fetchOverpassJson(ql, signal);
+  return json.elements;
+}
+
 export async function fetchOSMContext(
   damLon: number,
   damLat: number,
   signal?: AbortSignal,
 ): Promise<OSMContext | null> {
-  const s = damLat - OSM_HALF_DEG;
-  const w = damLon - OSM_HALF_DEG;
-  const n = damLat + OSM_HALF_DEG;
-  const e = damLon + OSM_HALF_DEG;
-  const ql = `[out:json][timeout:25];(way["building"](${s},${w},${n},${e});node["natural"="tree"](${s},${w},${n},${e});way["highway"~"^(${ROAD_KINDS})$"](${s},${w},${n},${e}););out geom;`;
-
-  const json = await fetchOverpassJson(ql, signal);
-  const elements: any[] = json.elements;
+  const elements = await fetchElements(damLon, damLat, signal);
 
   const cosLat = Math.max(Math.cos((damLat * Math.PI) / 180), 1e-6);
   const toX = (lon: number) => (lon - damLon) * 111320 * cosLat;

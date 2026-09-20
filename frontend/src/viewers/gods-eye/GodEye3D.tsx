@@ -27,8 +27,9 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Camera, Crosshair, Eye, Link2, LocateFixed, Plane, Radio, Radar, RotateCcw, Satellite, Zap } from 'lucide-react';
+import { Building2, Camera, Crosshair, Eye, Link2, LocateFixed, Plane, Radio, Radar, RotateCcw, Satellite, Zap } from 'lucide-react';
 import type { ImpactData } from '../../modules/incident-console/hooks';
+import { fetchOSMContextGeo } from '../local-3d/osmContext';
 import {
   MAX_FLIGHTS,
   OPENSKY_MIN_INTERVAL_MS,
@@ -71,6 +72,13 @@ const SENSORS: Record<SensorKind, { label: string; filter: string; tint: string 
 const SENSOR_ORDER: SensorKind[] = ['normal', 'night', 'nvg', 'thermal', 'noir'];
 
 const ESRI_URL = 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer';
+
+/** Dry asphalt tone by OSM highway class (CSS, for Cesium polylines). */
+function roadCss(kind: string): string {
+  if (/motorway|trunk/.test(kind)) return '#ffffff';
+  if (/primary|secondary/.test(kind)) return '#e2e8f0';
+  return '#94a3b8';
+}
 
 interface DetectBox {
   id: string;
@@ -124,6 +132,11 @@ export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCame
   const [flightsOn, setFlightsOn] = useState(false);
   const [tracked, setTracked] = useState<{ id: string; label: string; detail: string } | null>(null);
   const [follow, setFollow] = useState(false);
+  // OSM surroundings around the current camera view (any land, on demand).
+  const [surr, setSurr] = useState<{ b: number; t: number; r: number } | null>(null);
+  const [surrLoading, setSurrLoading] = useState(false);
+  const surrIdsRef = useRef<string[]>([]);
+  const surrBusyRef = useRef(false);
   const [boxes, setBoxes] = useState<DetectBox[]>([]);
   const [hud, setHud] = useState({ lon: 0, lat: 0, h: 0, contacts: 0 });
   const [notice, setNotice] = useState('');
@@ -630,6 +643,102 @@ export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCame
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, flightsOn]);
 
+  // ── OSM surroundings: buildings / trees / streets around THIS view ──
+  // Works on any land you zoom to — no dam model required.
+  const clearSurroundings = useCallback(() => {
+    removeIds(surrIdsRef.current);
+    surrIdsRef.current = [];
+    setSurr(null);
+    refreshContactCount();
+  }, [removeIds, refreshContactCount]);
+
+  const loadSurroundings = useCallback(async () => {
+    const viewer = viewerRef.current;
+    const Cesium = cesiumRef.current;
+    if (!viewer || !Cesium || surrBusyRef.current) return;
+    if (surr) {
+      clearSurroundings();
+      return;
+    }
+    surrBusyRef.current = true;
+    setSurrLoading(true);
+    flash('Loading OSM surroundings around this view…');
+    try {
+      const carto = Cesium.Cartographic.fromCartesian(viewer.camera.position);
+      const lon = Cesium.Math.toDegrees(carto.longitude);
+      const lat = Cesium.Math.toDegrees(carto.latitude);
+      const g = await fetchOSMContextGeo(lon, lat);
+      if (!g || (!g.buildings.length && !g.trees.length && !g.roads.length)) {
+        flash('No mapped buildings / trees / streets in this view.');
+        return;
+      }
+      const ids: string[] = [];
+      const bldMat = Cesium.Color.fromCssColorString('#c7cfd6').withAlpha(0.92);
+      g.buildings.forEach((b, i) => {
+        const flat: number[] = [];
+        b.ring.forEach(([lo, la]) => flat.push(lo, la));
+        viewer.entities.add({
+          id: `surr-bld-${i}`,
+          name: 'Building',
+          description: `Building • ~${Math.round(b.heightM)} m • OpenStreetMap`,
+          polygon: {
+            hierarchy: Cesium.Cartesian3.fromDegreesArray(flat),
+            height: 0,
+            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+            extrudedHeight: Math.max(2, b.heightM),
+            material: bldMat,
+            outline: true,
+            outlineColor: Cesium.Color.fromCssColorString('#475569'),
+          },
+        });
+        ids.push(`surr-bld-${i}`);
+      });
+      const treeMat = Cesium.Color.fromCssColorString('#2f9e44');
+      g.trees.slice(0, 800).forEach(([lo, la], i) => {
+        viewer.entities.add({
+          id: `surr-tree-${i}`,
+          name: 'Tree',
+          description: 'Tree • OpenStreetMap',
+          position: Cesium.Cartesian3.fromDegrees(lo, la),
+          point: {
+            pixelSize: 5,
+            color: treeMat,
+            outlineColor: Cesium.Color.WHITE,
+            outlineWidth: 1,
+            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+          },
+        });
+        ids.push(`surr-tree-${i}`);
+      });
+      g.roads.forEach((r, i) => {
+        const flat: number[] = [];
+        r.pts.forEach(([lo, la]) => flat.push(lo, la));
+        viewer.entities.add({
+          id: `surr-road-${i}`,
+          name: `Street (${r.kind})`,
+          description: `Street • ${r.kind} • OpenStreetMap`,
+          polyline: {
+            positions: Cesium.Cartesian3.fromDegreesArray(flat),
+            clampToGround: true,
+            width: 2,
+            material: Cesium.Color.fromCssColorString(roadCss(r.kind)),
+          },
+        });
+        ids.push(`surr-road-${i}`);
+      });
+      surrIdsRef.current = ids;
+      const shown = Math.min(800, g.trees.length);
+      setSurr({ b: g.buildings.length, t: shown, r: g.roads.length });
+      refreshContactCount();
+      flash(`Surroundings: ${g.buildings.length} buildings • ${shown} trees • ${g.roads.length} streets. Click again to clear.`);
+    } catch (e) {
+      flash(`Surroundings unavailable (${(e as Error).message}).`);
+    } finally {
+      surrBusyRef.current = false;
+      setSurrLoading(false);
+    }
+  }, [surr, clearSurroundings, refreshContactCount, flash]);
+
   // ── Trail sampler for the tracked contact ───────────────────────────
   useEffect(() => {
     if (!ready || !tracked) return;
@@ -888,6 +997,16 @@ export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCame
             }`}
           >
             <Plane className="w-3 h-3" /> Flights
+          </button>
+          <button
+            onClick={() => void loadSurroundings()}
+            title="Load real OSM buildings / trees / streets around the current view — works on any land"
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
+              surr ? 'bg-cmd-teal/90 text-[#071018]' : 'text-cmd-muted hover:text-cmd-ink'
+            }`}
+          >
+            <Building2 className="w-3 h-3" />
+            {surrLoading ? '…' : surr ? `${surr.b}🏠 ${surr.t}🌳` : 'Surroundings'}
           </button>
         </div>
       </div>
