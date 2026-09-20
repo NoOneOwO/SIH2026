@@ -79,18 +79,18 @@ interface DetectBox {
   y: number;
 }
 
-interface ShareState {
+export interface ShareState {
   c: [number, number, number];
   s: SensorKind;
   l: { quakes: boolean; flights: boolean; detect: boolean };
   t: string | null;
 }
 
-function encodeShare(s: ShareState): string {
+export function encodeShare(s: ShareState): string {
   return btoa(JSON.stringify(s)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-function decodeShare(hash: string): ShareState | null {
+export function decodeShare(hash: string): ShareState | null {
   try {
     const b64 = hash.replace(/-/g, '+').replace(/_/g, '/');
     const o = JSON.parse(atob(b64));
