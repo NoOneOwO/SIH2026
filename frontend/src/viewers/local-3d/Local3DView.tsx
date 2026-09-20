@@ -6,15 +6,19 @@
  *     served same-origin from /terrain/<slug>.glb
  *   - OrbitControls (rotate / zoom / pan), dam marker pin at the true
  *     dam coordinates, height readout.
+ *   - Real surroundings composited from OpenStreetMap (Overpass, keyless):
+ *     extruded buildings, instanced trees, draped streets — all sampled
+ *     against the flood grid, so inundated structures light up red live.
  *
  * Nothing else renders — no globe sphere, no world tiles, no map SDK.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { DamPoint } from '../../data/india-dams';
+import { fetchOSMContext, type OSMContext } from './osmContext';
 
 /** Flood overlay: sim-grid arrival/depth painted onto the mesh via vertex
  * colors (multiplied with the satellite texture). The scene is updated
@@ -96,6 +100,14 @@ export function waterColor(d: number): [number, number, number] {
   if (d < 1.0) return [0.35, 0.95, 1.0];
   if (d < 2.5) return [1.0, 0.62, 0.25];
   return [1.0, 0.28, 0.28];
+}
+
+/** Dry asphalt tone by OSM highway class (linear RGB for vertex colors). */
+export function roadDryColor(kind: string): [number, number, number] {
+  if (/motorway|trunk/.test(kind)) return [1, 1, 1];
+  if (/primary|secondary/.test(kind)) return [0.89, 0.91, 0.94];
+  if (/tertiary|unclassified|residential/.test(kind)) return [0.8, 0.83, 0.88];
+  return [0.58, 0.64, 0.69];
 }
 
 /** Map a row-major mesh vertex to the sim grid (nearest resample). */
@@ -199,11 +211,142 @@ export default function Local3DView({ dam, slug, hazardColor, onShowMap, onClose
   const floodRef = useRef<FloodOverlay | null | undefined>(null);
   floodRef.current = flood;
 
+  // ── OSM surroundings (buildings / trees / streets) ────────────────
+  // Regular-grid elevation cache: the GLB terrain is a row-major mesh, so
+  // ground height is a bilinear lookup (no per-point raycasts).
+  const gridRef = useRef<{
+    rows: number; cols: number;
+    minX: number; maxX: number; minZ: number; maxZ: number;
+    ys: Float32Array;
+  } | null>(null);
+  const ctxRef = useRef<{
+    group: THREE.Group; bld: THREE.Group; tree: THREE.Group; road: THREE.Group;
+    bldMeshes: Array<{ mesh: THREE.Mesh; cx: number; cz: number }>;
+    roadSegs: Array<{ ax: number; az: number; bx: number; bz: number; kind: string }>;
+    roadColorAttr: THREE.BufferAttribute | null;
+    dryMat: THREE.Material; floodMat: THREE.Material;
+  } | null>(null);
+  const [ctx, setCtx] = useState<OSMContext | null>(null);
+  const [ctxStatus, setCtxStatus] = useState<'idle' | 'loading' | 'ready' | 'empty' | 'error'>('idle');
+  const [showBld, setShowBld] = useState(true);
+  const [showTrees, setShowTrees] = useState(true);
+  const [showRoads, setShowRoads] = useState(true);
+  const showBldRef = useRef(showBld);
+  showBldRef.current = showBld;
+  const showTreesRef = useRef(showTrees);
+  showTreesRef.current = showTrees;
+  const showRoadsRef = useRef(showRoads);
+  showRoadsRef.current = showRoads;
+  const [structStats, setStructStats] = useState({ bTotal: 0, bFlood: 0, trees: 0, roadsKm: 0 });
+
+  // Snapshot the terrain elevation grid once the mesh + meta are both in.
+  // Powers O(1) ground-height lookups for draping buildings/trees/roads.
+  const captureGrid = useCallback(() => {
+    const S = sceneRef.current;
+    const mg = metaRef.current?.mesh_grid;
+    if (!S?.terrain || !mg || gridRef.current) return;
+    const pos = S.terrain.geometry.getAttribute('position') as THREE.BufferAttribute | undefined;
+    if (!pos || pos.count !== mg.rows * mg.cols) return;
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minZ = Infinity;
+    let maxZ = -Infinity;
+    const ys = new Float32Array(pos.count);
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const z = pos.getZ(i);
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (z < minZ) minZ = z;
+      if (z > maxZ) maxZ = z;
+      ys[i] = pos.getY(i);
+    }
+    gridRef.current = { rows: mg.rows, cols: mg.cols, minX, maxX, minZ, maxZ, ys };
+  }, []);
+
+  /** Bilinear ground height (exaggerated GLB frame) at local (x, z). */
+  const groundAt = useCallback((x: number, z: number): number | null => {
+    const G = gridRef.current;
+    if (!G) return null;
+    if (x < G.minX || x > G.maxX || z < G.minZ || z > G.maxZ) return null;
+    const fx = ((x - G.minX) / Math.max(G.maxX - G.minX, 1e-6)) * (G.cols - 1);
+    const fz = ((z - G.minZ) / Math.max(G.maxZ - G.minZ, 1e-6)) * (G.rows - 1);
+    const x0 = Math.floor(fx);
+    const z0 = Math.floor(fz);
+    const x1 = Math.min(G.cols - 1, x0 + 1);
+    const z1 = Math.min(G.rows - 1, z0 + 1);
+    const tx = fx - x0;
+    const tz = fz - z0;
+    const y00 = G.ys[z0 * G.cols + x0];
+    const y10 = G.ys[z0 * G.cols + x1];
+    const y01 = G.ys[z1 * G.cols + x0];
+    const y11 = G.ys[z1 * G.cols + x1];
+    return (y00 * (1 - tx) + y10 * tx) * (1 - tz) + (y01 * (1 - tx) + y11 * tx) * tz;
+  }, []);
+
+  /** Flood state at a local (x, z): same grid binding as the water mesh. */
+  const sampleFlood = useCallback((x: number, z: number): { wet: boolean; depth: number } => {
+    const F = floodRef.current;
+    const mg = metaRef.current?.mesh_grid;
+    const dry = { wet: false, depth: 0 };
+    if (!F?.visible || !mg) return dry;
+    let i = -1;
+    if (F.geo) {
+      i = geoCellForVertex(x, z, F.geo, F.rows, F.cols);
+    } else {
+      const G = gridRef.current;
+      if (!G) return dry;
+      const mc = Math.max(0, Math.min(mg.cols - 1,
+        Math.round(((x - G.minX) / Math.max(G.maxX - G.minX, 1e-6)) * (mg.cols - 1))));
+      const mr = Math.max(0, Math.min(mg.rows - 1,
+        Math.round(((z - G.minZ) / Math.max(G.maxZ - G.minZ, 1e-6)) * (mg.rows - 1))));
+      const sr = Math.min(F.rows - 1, Math.round((mr * (F.rows - 1)) / Math.max(mg.rows - 1, 1)));
+      const sc = Math.min(F.cols - 1, Math.round((mc * (F.cols - 1)) / Math.max(mg.cols - 1, 1)));
+      i = sr * F.cols + sc;
+    }
+    if (i < 0) return dry;
+    const a = F.arrival[i];
+    const d = depthAtTime(F)[i];
+    const wet = a >= 0 && a <= F.tMin && d > 0.05;
+    return { wet, depth: wet ? d : 0 };
+  }, []);
+
+  /** Re-tint surroundings for the current timeline minute (no rebuild). */
+  const updateContextFlood = useCallback(() => {
+    const C = ctxRef.current;
+    if (!C) return;
+    let bFlood = 0;
+    for (const b of C.bldMeshes) {
+      const s = sampleFlood(b.cx, b.cz);
+      b.mesh.material = s.wet ? C.floodMat : C.dryMat;
+      if (s.wet) bFlood++;
+    }
+    if (C.roadColorAttr) {
+      const arr = C.roadColorAttr.array as Float32Array;
+      for (let k = 0; k < C.roadSegs.length; k++) {
+        for (const [px, pz, off] of [
+          [C.roadSegs[k].ax, C.roadSegs[k].az, k * 6],
+          [C.roadSegs[k].bx, C.roadSegs[k].bz, k * 6 + 3],
+        ] as Array<[number, number, number]>) {
+          const s = sampleFlood(px, pz);
+          const c = s.wet ? waterColor(s.depth) : roadDryColor(C.roadSegs[k].kind);
+          arr[off] = c[0];
+          arr[off + 1] = c[1];
+          arr[off + 2] = c[2];
+        }
+      }
+      C.roadColorAttr.needsUpdate = true;
+    }
+    setStructStats((p) => (p.bFlood === bFlood ? p : { ...p, bFlood }));
+  }, [sampleFlood]);
+
   // Re-paint whenever flood state, meta, or model readiness changes.
   // The scene itself is never rebuilt — only the color attribute updates.
   useEffect(() => {
     applyRef.current?.();
-  }, [flood, meta, status]);
+    captureGrid();
+    updateContextFlood();
+  }, [flood, meta, status, captureGrid, updateContextFlood]);
 
   // Spin toggle: ambient rotation during sandbox/simulation runs.
   // The render loop calls controls.update() every frame, so flipping
@@ -462,9 +605,181 @@ export default function Local3DView({ dam, slug, hazardColor, onShowMap, onClose
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, slug]);
 
+  // ── OSM surroundings: fetch once the terrain is ready ────────────
+  useEffect(() => {
+    if (status !== 'ready') return;
+    let dead = false;
+    const ctrl = new AbortController();
+    setCtxStatus('loading');
+    fetchOSMContext(dam.lon, dam.lat, ctrl.signal).then((c) => {
+      if (dead) return;
+      if (!c || (!c.buildings.length && !c.trees.length && !c.roads.length)) {
+        setCtx(null);
+        setCtxStatus('empty');
+        return;
+      }
+      setCtx(c);
+      setCtxStatus('ready');
+    }).catch(() => {
+      if (!dead) {
+        setCtx(null);
+        setCtxStatus('error');
+      }
+    });
+    return () => {
+      dead = true;
+      ctrl.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, slug]);
+
+  // ── OSM surroundings: build extruded buildings + trees + draped roads ──
+  // Rebuilt only when the context payload changes (per dam); flood scrubbing
+  // only re-tints via updateContextFlood.
+  useEffect(() => {
+    const S = sceneRef.current;
+    if (!S || !ctx || status !== 'ready') return;
+
+    // Clear a previous context group (slug switch without full unmount).
+    if (ctxRef.current) {
+      S.scene.remove(ctxRef.current.group);
+      ctxRef.current.group.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (mesh.geometry) mesh.geometry.dispose();
+      });
+      ctxRef.current.dryMat.dispose();
+      ctxRef.current.floodMat.dispose();
+      ctxRef.current = null;
+    }
+
+    const group = new THREE.Group();
+    const bld = new THREE.Group();
+    const tree = new THREE.Group();
+    const road = new THREE.Group();
+    group.add(bld, tree, road);
+
+    const dryMat = new THREE.MeshStandardMaterial({ color: '#c7cfd6', roughness: 0.9, metalness: 0.05 });
+    const floodMat = new THREE.MeshStandardMaterial({
+      color: '#7f1d1d', emissive: new THREE.Color('#ef4444'), emissiveIntensity: 0.55, roughness: 0.7,
+    });
+
+    // Buildings: footprint → extruded block, draped on the terrain grid.
+    const bldMeshes: Array<{ mesh: THREE.Mesh; cx: number; cz: number }> = [];
+    for (const b of ctx.buildings) {
+      const g = groundAt(b.cx, b.cz);
+      if (g == null) continue;
+      const shape = new THREE.Shape();
+      b.ring.forEach(([x, z], i) => {
+        if (i === 0) shape.moveTo(x, -z);
+        else shape.lineTo(x, -z);
+      });
+      shape.closePath();
+      const geo = new THREE.ExtrudeGeometry(shape, { depth: Math.max(2, b.heightM), bevelEnabled: false });
+      geo.rotateX(-Math.PI / 2); // footprint (x, -z) + depth → (x, +y, z)
+      const mesh = new THREE.Mesh(geo, dryMat);
+      mesh.position.y = g - 0.5; // sink the foundation slightly
+      bld.add(mesh);
+      bldMeshes.push({ mesh, cx: b.cx, cz: b.cz });
+    }
+
+    // Trees: two instanced draws (trunks + canopies) for the whole forest.
+    let treeCount = 0;
+    const treeBase: Array<{ x: number; z: number; g: number; s: number }> = [];
+    for (const [x, z] of ctx.trees) {
+      const g = groundAt(x, z);
+      if (g == null) continue;
+      treeBase.push({ x, z, g, s: 0.7 + (Math.abs(x * 13.7 + z * 7.3) % 10) / 10 });
+    }
+    if (treeBase.length) {
+      const trunkG = new THREE.CylinderGeometry(0.7, 1.0, 5, 5);
+      const canG = new THREE.ConeGeometry(3.6, 9.5, 6);
+      const trunkM = new THREE.MeshLambertMaterial({ color: '#5b4232' });
+      const canM = new THREE.MeshLambertMaterial({ color: '#2f6b3a' });
+      const trunks = new THREE.InstancedMesh(trunkG, trunkM, treeBase.length);
+      const cans = new THREE.InstancedMesh(canG, canM, treeBase.length);
+      const m = new THREE.Matrix4();
+      const q = new THREE.Quaternion();
+      const pos = new THREE.Vector3();
+      const scl = new THREE.Vector3();
+      treeBase.forEach((t) => {
+        pos.set(t.x, t.g + 2.5 * t.s, t.z);
+        scl.setScalar(t.s);
+        m.compose(pos, q, scl);
+        trunks.setMatrixAt(treeCount, m);
+        pos.set(t.x, t.g + 9.75 * t.s, t.z);
+        m.compose(pos, q, scl);
+        cans.setMatrixAt(treeCount, m);
+        treeCount++;
+      });
+      trunks.instanceMatrix.needsUpdate = true;
+      cans.instanceMatrix.needsUpdate = true;
+      tree.add(trunks, cans);
+    }
+
+    // Roads: one LineSegments, draped +8 m; colors refresh with the flood.
+    const roadSegs: Array<{ ax: number; az: number; bx: number; bz: number; kind: string }> = [];
+    for (const r of ctx.roads) {
+      for (let i = 0; i + 1 < r.pts.length; i++) {
+        const [ax, az] = r.pts[i];
+        const [bx, bz] = r.pts[i + 1];
+        if (groundAt(ax, az) == null || groundAt(bx, bz) == null) continue;
+        roadSegs.push({ ax, az, bx, bz, kind: r.kind });
+      }
+    }
+    let roadColorAttr: THREE.BufferAttribute | null = null;
+    let roadsKm = 0;
+    if (roadSegs.length) {
+      const positions = new Float32Array(roadSegs.length * 6);
+      const colors = new Float32Array(roadSegs.length * 6);
+      roadSegs.forEach((sg, k) => {
+        const ga = groundAt(sg.ax, sg.az)!;
+        const gb = groundAt(sg.bx, sg.bz)!;
+        positions.set([sg.ax, ga + 8, sg.az, sg.bx, gb + 8, sg.bz], k * 6);
+        const c = roadDryColor(sg.kind);
+        colors.set([...c, ...c], k * 6);
+        roadsKm += Math.hypot(sg.bx - sg.ax, sg.bz - sg.az) / 1000;
+      });
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      roadColorAttr = new THREE.BufferAttribute(colors, 3);
+      g.setAttribute('color', roadColorAttr);
+      road.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true })));
+    }
+
+    bld.visible = showBldRef.current;
+    tree.visible = showTreesRef.current;
+    road.visible = showRoadsRef.current;
+    S.scene.add(group);
+    ctxRef.current = { group, bld, tree, road, bldMeshes, roadSegs, roadColorAttr, dryMat, floodMat };
+    setStructStats({ bTotal: bldMeshes.length, bFlood: 0, trees: treeCount, roadsKm: Math.round(roadsKm * 10) / 10 });
+    updateContextFlood();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctx, status]);
+
+  // Layer visibility toggles.
+  useEffect(() => {
+    const C = ctxRef.current;
+    if (!C) return;
+    C.bld.visible = showBld;
+    C.tree.visible = showTrees;
+    C.road.visible = showRoads;
+  }, [showBld, showTrees, showRoads]);
+
+  // Flood scrub → re-tint structures + roads ( minute granularity is enough).
+  const floodCtxTMin = flood ? Math.round(flood.tMin) : -1;
+  useEffect(() => {
+    updateContextFlood();
+  }, [flood?.key, flood?.visible, floodCtxTMin, updateContextFlood]);
+
   useEffect(() => {
     if (!containerRef.current) return;
     const container = containerRef.current;
+    // Fresh dam → drop cached grid + surroundings (fetch effect re-fires on ready).
+    gridRef.current = null;
+    ctxRef.current = null;
+    setCtx(null);
+    setCtxStatus('idle');
+    setStructStats({ bTotal: 0, bFlood: 0, trees: 0, roadsKm: 0 });
     let disposed = false;
     let renderer: THREE.WebGLRenderer | null = null;
     let raf = 0;
@@ -708,13 +1023,59 @@ export default function Local3DView({ dam, slug, hazardColor, onShowMap, onClose
       <div ref={containerRef} className="w-full h-full cursor-crosshair" />
 
       {/* Header overlay */}
-      <div className="absolute top-3 left-3 z-20 flex items-center gap-2">
+      <div className="absolute top-3 left-3 z-20 flex items-center gap-2 flex-wrap max-w-[60%]">
         <div className="px-3 py-1.5 bg-[#0A1218]/85 border border-cmd-border text-cmd-ink text-[10px] font-bold rounded-full">
           TRUE 3D — {dam.name} + surroundings
         </div>
         {meta && (
           <div className="px-3 py-1.5 bg-[#0A1218]/85 border border-cmd-border text-cmd-muted text-[10px] font-mono rounded-full tabular-nums">
             {meta.elevation_min_m.toFixed(0)}–{meta.elevation_max_m.toFixed(0)} m • ±{meta.bbox_radius_km} km
+          </div>
+        )}
+        {/* OSM surroundings toggles */}
+        {ctxStatus === 'loading' && (
+          <div className="px-3 py-1.5 bg-[#0A1218]/85 border border-cmd-border text-cmd-muted text-[10px] rounded-full animate-pulse">
+            Loading buildings • trees • streets…
+          </div>
+        )}
+        {ctxStatus === 'ready' && (
+          <>
+            <button
+              onClick={() => setShowBld((v) => !v)}
+              title="Toggle OSM buildings (extruded, flood-aware)"
+              className={`px-3 py-1.5 text-[10px] font-bold rounded-full border transition-colors ${showBld ? 'bg-cmd-teal/90 text-[#071018] border-cmd-teal' : 'bg-[#0A1218]/85 text-cmd-muted border-cmd-border hover:text-cmd-ink'}`}
+            >
+              🏠 {structStats.bTotal}
+            </button>
+            <button
+              onClick={() => setShowTrees((v) => !v)}
+              title="Toggle OSM trees"
+              className={`px-3 py-1.5 text-[10px] font-bold rounded-full border transition-colors ${showTrees ? 'bg-cmd-teal/90 text-[#071018] border-cmd-teal' : 'bg-[#0A1218]/85 text-cmd-muted border-cmd-border hover:text-cmd-ink'}`}
+            >
+              🌳 {structStats.trees}
+            </button>
+            <button
+              onClick={() => setShowRoads((v) => !v)}
+              title="Toggle OSM streets (draped, flood-aware)"
+              className={`px-3 py-1.5 text-[10px] font-bold rounded-full border transition-colors ${showRoads ? 'bg-cmd-teal/90 text-[#071018] border-cmd-teal' : 'bg-[#0A1218]/85 text-cmd-muted border-cmd-border hover:text-cmd-ink'}`}
+            >
+              🛣 {structStats.roadsKm} km
+            </button>
+          </>
+        )}
+        {ctxStatus === 'empty' && (
+          <div className="px-3 py-1.5 bg-[#0A1218]/85 border border-cmd-border text-cmd-muted text-[10px] rounded-full">
+            No mapped structures nearby
+          </div>
+        )}
+        {ctxStatus === 'error' && (
+          <div className="px-3 py-1.5 bg-[#0A1218]/85 border border-cmd-amber/50 text-cmd-amber text-[10px] rounded-full">
+            Surroundings unavailable (OSM)
+          </div>
+        )}
+        {flood?.visible && structStats.bFlood > 0 && (
+          <div className="px-3 py-1.5 bg-[#7f1d1d]/90 border border-cmd-red text-white text-[10px] font-bold rounded-full tabular-nums">
+            🏚 {structStats.bFlood} structure{structStats.bFlood === 1 ? '' : 's'} inundated
           </div>
         )}
       </div>
@@ -776,6 +1137,7 @@ export default function Local3DView({ dam, slug, hazardColor, onShowMap, onClose
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#59f2ff' }} />0.3–1m</span>
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#ff9e40' }} />1–2.5m</span>
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#ff4747' }} />&gt;2.5m</span>
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#7f1d1d', border: '1px solid #ef4444' }} />🏠 inundated</span>
         </div>
       )}
 
