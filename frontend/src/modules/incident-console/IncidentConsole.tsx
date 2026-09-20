@@ -18,6 +18,7 @@ import { X, Users, Droplets, AlertTriangle, PanelLeftClose, PanelLeft, Globe, Se
 import { INDIA_DAMS, DamPoint } from '../../data/india-dams';
 import { sandboxApi } from '../../api/client';
 import Local3DView, { type FloodOverlay } from '../../viewers/local-3d/Local3DView';
+import GodEye3D from '../../viewers/gods-eye/GodEye3D';
 import SandboxPanel from './SandboxPanel';
 import SandboxTransition from './SandboxTransition';
 import LisfloodPanel from '../../components/lisflood/LisfloodPanel';
@@ -629,6 +630,9 @@ export default function IncidentConsole() {
   const [geolibreOnline, setGeolibreOnline] = useState<boolean | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [geolibreReady, setGeolibreReady] = useState(false);
+  // God's Eye 3D view — GEV situational globe inside the GeoLibre map area.
+  // Persists across dam picks; auto-hidden while the local true-3D terrain owns the viewport.
+  const [godEye, setGodEye] = useState(false);
   const mapLibreRef = useRef<any>(null);
 
   // Local-3D model manifest (curated; keyed by dam id, exact match).
@@ -970,6 +974,34 @@ export default function IncidentConsole() {
           )}
         </div>
 
+        {/* God's Eye toggle — GEV 3D system inside the GeoLibre view */}
+        {!(focusedDam && resolveModelSlug(focusedDam) && !forceMap) && (
+          <div className="absolute top-12 right-14 z-20 flex gap-1.5">
+            <button
+              onClick={() => setGodEye(false)}
+              className={`px-3 py-1.5 text-[10px] font-bold rounded-full border backdrop-blur transition-colors ${
+                !godEye
+                  ? 'bg-cmd-teal/90 text-[#071018] border-cmd-teal'
+                  : 'bg-[#0A1218]/90 text-cmd-muted border-cmd-border hover:text-cmd-ink'
+              }`}
+              title="Standard GeoLibre / satellite globe"
+            >
+              🌐 Globe
+            </button>
+            <button
+              onClick={() => setGodEye(true)}
+              className={`px-3 py-1.5 text-[10px] font-bold rounded-full border backdrop-blur transition-colors ${
+                godEye
+                  ? 'bg-cmd-teal/90 text-[#071018] border-cmd-teal'
+                  : 'bg-[#0A1218]/90 text-cmd-muted border-cmd-border hover:text-cmd-ink'
+              }`}
+              title="God's Eye 3D — sensors, tracking, live layers"
+            >
+              👁 God's Eye 3D
+            </button>
+          </div>
+        )}
+
         {/* Floating AI activity label while the sandbox engine is computing */}
         {FEATURES.sandboxFlood && sandboxOpen && sandboxBusy && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-4 py-2 rounded-full border border-cmd-teal/40 bg-[#0A1218]/92">
@@ -1023,6 +1055,20 @@ export default function IncidentConsole() {
               />
             )}
           </>
+        ) : godEye ? (
+          <GodEye3D
+            timeMinutes={0}
+            impactData={null}
+            cameraTarget={null}
+            onCameraChange={() => {}}
+            focusDam={(focusedDam ?? selectedDam)
+              ? {
+                  lon: (focusedDam ?? selectedDam)!.lon,
+                  lat: (focusedDam ?? selectedDam)!.lat,
+                  name: (focusedDam ?? selectedDam)!.name,
+                }
+              : null}
+          />
         ) : geolibreOnline ? (
           <iframe
             ref={iframeRef}
