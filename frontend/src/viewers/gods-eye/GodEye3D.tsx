@@ -27,7 +27,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Building2, Camera, Crosshair, Eye, Link2, LocateFixed, Plane, Radio, Radar, RotateCcw, Satellite, Zap } from 'lucide-react';
+import { Building2, Camera, Crosshair, Eye, Link2, LocateFixed, Minus, Plane, Plus, Radio, Radar, RotateCcw, Satellite, Zap } from 'lucide-react';
 import type { ImpactData } from '../../modules/incident-console/hooks';
 import { fetchOSMContextGeo } from '../local-3d/osmContext';
 import {
@@ -271,6 +271,13 @@ export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCame
       });
       viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#0f172a');
       viewer.scene.globe.enableLighting = false;
+
+      // Free zoom: globe surface ↔ deep space. Defaults can trap the wheel
+      // at either end, so set explicit limits + step zoom below as backup.
+      const controller = viewer.scene.screenSpaceCameraController;
+      controller.minimumZoomDistance = 2;
+      controller.maximumZoomDistance = 100000000;
+      controller.enableCollisionDetection = true;
 
       const startLon = restored?.c[0] ?? damLonRef.current;
       const startLat = restored?.c[1] ?? damLatRef.current;
@@ -739,6 +746,18 @@ export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCame
     }
   }, [surr, clearSurroundings, refreshContactCount, flash]);
 
+  // ── Step zoom (buttons + keyboard): works even if the wheel is stuck ──
+  // Steps scale with current height so they feel right from rooftop to orbit.
+  const stepZoom = useCallback((dir: 1 | -1) => {
+    const viewer = viewerRef.current;
+    const Cesium = cesiumRef.current;
+    if (!viewer || !Cesium) return;
+    const carto = Cesium.Cartographic.fromCartesian(viewer.camera.position);
+    const step = Math.min(Math.max(carto.height * 0.4, 10), 20000000);
+    if (dir > 0) viewer.camera.zoomOut(step);
+    else viewer.camera.zoomIn(step);
+  }, []);
+
   // ── Trail sampler for the tracked contact ───────────────────────────
   useEffect(() => {
     if (!ready || !tracked) return;
@@ -857,7 +876,7 @@ export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCame
     );
   }, [sensor, quakesOn, flightsOn, showDetect, tracked, flash]);
 
-  // ── Keyboard: 1-5 sensors · H HUD · D detection · C cockpit · Esc out ──
+  // ── Keyboard: 1-5 sensors · H HUD · D detection · C cockpit · Esc out · +/− zoom ──
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
@@ -867,10 +886,12 @@ export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCame
       else if (k === 'd') setShowDetect((v) => !v);
       else if (k === 'c' && tracked) enterCockpit();
       else if (k === 'escape') releaseTrack();
+      else if (k === '+' || k === '=') stepZoom(-1);
+      else if (k === '-' || k === '_') stepZoom(1);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [tracked, enterCockpit, releaseTrack]);
+  }, [tracked, enterCockpit, releaseTrack, stepZoom]);
 
   const S = SENSORS[sensor];
 
@@ -919,6 +940,14 @@ export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCame
       {/* ── Control rail ── */}
       <div className="absolute top-3 right-3 z-20 flex flex-col gap-1.5 items-end">
         <div className="flex gap-1.5">
+          <button onClick={() => stepZoom(-1)} title="Zoom in (+ key)"
+            className="p-2 rounded-lg border border-cmd-border bg-[#0A1218]/90 text-cmd-muted hover:text-cmd-ink hover:border-cmd-teal/40 transition-colors">
+            <Plus className="w-4 h-4" />
+          </button>
+          <button onClick={() => stepZoom(1)} title="Zoom out (− key)"
+            className="p-2 rounded-lg border border-cmd-border bg-[#0A1218]/90 text-cmd-muted hover:text-cmd-ink hover:border-cmd-teal/40 transition-colors">
+            <Minus className="w-4 h-4" />
+          </button>
           <button onClick={resetGlobe} title="Reset globe (dam overview)"
             className="p-2 rounded-lg border border-cmd-border bg-[#0A1218]/90 text-cmd-muted hover:text-cmd-ink hover:border-cmd-teal/40 transition-colors">
             <RotateCcw className="w-4 h-4" />
