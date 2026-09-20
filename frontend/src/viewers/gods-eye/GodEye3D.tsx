@@ -94,7 +94,7 @@ function decodeShare(hash: string): ShareState | null {
   try {
     const b64 = hash.replace(/-/g, '+').replace(/_/g, '/');
     const o = JSON.parse(atob(b64));
-    if (Array.isArray(o?.c) && SENSORS[o?.s]) return o as ShareState;
+    if (Array.isArray(o?.c) && typeof o?.s === 'string' && o.s in SENSORS) return o as ShareState;
     return null;
   } catch {
     return null;
