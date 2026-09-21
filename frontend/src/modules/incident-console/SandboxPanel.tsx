@@ -70,7 +70,7 @@ export default function SandboxPanel({ dam, autoDemo, onFlood, onClose, onBusyCh
   }, [tMin]);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(8); // sim-minutes per second
-  const gridsRef = useRef<{ arrival: Float32Array; depth: Float32Array; rows: number; cols: number; key: string } | null>(null);
+  const gridsRef = useRef<{ arrival: Float32Array; depth: Float32Array; rows: number; cols: number; key: string; bbox?: [number, number, number, number] } | null>(null);
   const maxT = run?.summary?.sim_minutes ?? 180;
 
   // Report engine activity upward for the floating status label.
@@ -107,19 +107,21 @@ export default function SandboxPanel({ dam, autoDemo, onFlood, onClose, onBusyCh
   const set = (k: string, v: number | string) => setParams((p) => ({ ...p, [k]: v }));
 
   // ── Decode + publish overlay ─────────────────────────────────────
-  const publish = (arrival: Float32Array, depth: Float32Array, rows: number, cols: number, key: string, t: number) => {
-    gridsRef.current = { arrival, depth, rows, cols, key };
-    onFlood({ key, arrival, depth, rows, cols, tMin: t, visible: true });
+  // bbox (backend `bbox_wsen`) travels with the grids so the God's Eye
+  // globe can drape the same water on its terrain — no mesh required.
+  const publish = (arrival: Float32Array, depth: Float32Array, rows: number, cols: number, key: string, t: number, bbox?: [number, number, number, number]) => {
+    gridsRef.current = { arrival, depth, rows, cols, key, bbox };
+    onFlood({ key, arrival, depth, rows, cols, tMin: t, visible: true, bboxWsen: bbox });
   };
 
   const showRun = (runData: any, t: number) => {
     const n = runData.grid;
-    publish(b64ToF32(runData.grids.arrival_min_b64), b64ToF32(runData.grids.maxdepth_m_b64), n, n, `run-${runData.scenario.label}-${Date.now()}`, t);
+    publish(b64ToF32(runData.grids.arrival_min_b64), b64ToF32(runData.grids.maxdepth_m_b64), n, n, `run-${runData.scenario.label}-${Date.now()}`, t, runData.bbox_wsen);
   };
 
   const showEnsemble = (ens: any, t: number) => {
     const n = ens.grid;
-    publish(b64ToF32(ens.aggregate_grids.earliest_min_b64), b64ToF32(ens.aggregate_grids.maxdepth_m_b64), n, n, `ens-${Date.now()}`, t);
+    publish(b64ToF32(ens.aggregate_grids.earliest_min_b64), b64ToF32(ens.aggregate_grids.maxdepth_m_b64), n, n, `ens-${Date.now()}`, t, ens.bbox_wsen);
   };
 
   // ── Timeline playback ────────────────────────────────────────────
@@ -141,7 +143,7 @@ export default function SandboxPanel({ dam, autoDemo, onFlood, onClose, onBusyCh
   useEffect(() => {
     const g = gridsRef.current;
     if (!g) return;
-    onFlood({ key: g.key, arrival: g.arrival, depth: g.depth, rows: g.rows, cols: g.cols, tMin, visible: true });
+    onFlood({ key: g.key, arrival: g.arrival, depth: g.depth, rows: g.rows, cols: g.cols, tMin, visible: true, bboxWsen: g.bbox });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tMin]);
 
@@ -195,6 +197,7 @@ export default function SandboxPanel({ dam, autoDemo, onFlood, onClose, onBusyCh
         scenario: bundle.scenario, grid: bundle.grid, summary: bundle.summary,
         assets: bundle.assets, asset_provenance: bundle.asset_provenance,
         explanation: bundle.explanation, grids: bundle.grids,
+        bbox_wsen: bundle.bbox_wsen,
       };
       setActiveCase('worst');
       setRun(demoRun);
@@ -271,6 +274,14 @@ export default function SandboxPanel({ dam, autoDemo, onFlood, onClose, onBusyCh
             Terrain: <b>{terrain.source}{terrain.dataset ? ` / ${terrain.dataset}` : ''}</b>
             {terrain.resolution_m ? ` • ${terrain.resolution_m} m` : ''}
             {terrain.fallback_used ? ` • fallback (${terrain.fallback_reason || 'auto'})` : ' • primary source'}
+          </p>
+        )}
+        {(run as any)?.river_conditioning && (
+          <p className="text-[10px] text-cmd-muted bg-cmd-panel2/60 border border-cmd-border rounded-lg px-2 py-1.5 mb-2">
+            River conditioning: breach snapped to channel ({(run as any).river_conditioning.breach_acc_cells} upstream cells)
+            {' '}• {(run as any).river_conditioning.channel_cells} channel cells • burn {(run as any).river_conditioning.burn_max_m} m
+            {(run as any).river_conditioning.sill_carve_max_m > 0 ? ` • sill carve ${(run as any).river_conditioning.sill_carve_max_m} m` : ''}
+            {' '}• {(run as any).river_conditioning.inflow_cells}-cell wave inflow
           </p>
         )}
         <p className="text-[10px] text-cmd-amber bg-cmd-amber/[0.08] border border-cmd-amber/25 rounded-lg px-2 py-1.5 mb-3">

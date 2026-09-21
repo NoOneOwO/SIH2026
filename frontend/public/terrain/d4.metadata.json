@@ -1,5 +1,5 @@
 {
-  "dam": "d4",
+  "dam": "Tehri Dam",
   "lat": 30.376,
   "lon": 78.474,
   "bbox_radius_km": 5.0,
@@ -24,8 +24,8 @@
   },
   "vertical_exaggeration": 1.0,
   "sources": {
-    "dem": "OpenTopography:COP30",
+    "dem": "curated-DEM (existing)",
     "texture": "Esri:World_Imagery"
   },
-  "created_utc": "2026-09-06T11:38:59.732228+00:00"
+  "created_utc": "2026-09-21T13:41:37.782326+00:00"
 }

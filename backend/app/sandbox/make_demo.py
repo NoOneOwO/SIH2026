@@ -69,7 +69,7 @@ def main() -> None:
         "scenario": worst.model_dump(),
         "simulation": {
             "status": "completed",
-            "solver": "sandbox-diffusive-screening-v1",
+            "solver": "sandbox-diffusive-screening-v2",
             "duration_min": round(res.sim_minutes, 1),
             "timesteps": len(res.frames or []),
             "grid": 96,
@@ -78,6 +78,7 @@ def main() -> None:
         "grid": 96,
         "cell_m": round(cell96, 2),
         "bbox_wsen": bbox,
+        "river_conditioning": res.conditioning,
         "summary": summary,
         "hydrograph": hg,
         "frames": res.frames or [],

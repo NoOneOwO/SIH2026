@@ -14,7 +14,8 @@ from app.sandbox import hydrograph as hydro
 from app.sandbox import scenarios as agent
 from app.sandbox import terrain_providers as tp
 from app.sandbox.dam_registry import get_dam
-from app.sandbox.engine import propagate
+from app.sandbox.engine import propagate, run_scenario
+from app.sandbox.rivers import condition_domain
 from app.sandbox.schemas import ScenarioParams
 
 client = TestClient(app, raise_server_exceptions=False)
@@ -140,6 +141,109 @@ def test_engine_frames_are_computed_states():
     assert all(f["volume_stored_m3"] >= 0 for f in r.frames)
     ts = [f["t_min"] for f in r.frames]
     assert ts == sorted(ts) and ts[-1] <= 60.0 + 1e-9
+
+
+# ── D8 river conditioning ────────────────────────────────────────────
+
+def _valley_elev(n=48):
+    """V-valley draining south (+row): channel along center column."""
+    yy, xx = np.mgrid[0:n, 0:n].astype(float)
+    return 120.0 + 0.9 * np.abs(xx - n / 2) - yy * 0.6
+
+
+def test_conditioning_deterministic():
+    e = _valley_elev()
+    c1 = condition_domain(e)
+    c2 = condition_domain(e)
+    np.testing.assert_array_equal(c1["elev"], c2["elev"])
+    assert c1["channel"].tolist() == c2["channel"].tolist()
+    assert c1["breach"] == c2["breach"]
+
+
+def test_conditioning_finds_valley_channel_and_snaps_breach():
+    e = _valley_elev()
+    c = condition_domain(e)
+    n = e.shape[0]
+    assert c["channel"].sum() > n, "valley must read as a channel"
+    # channel runs down the valley axis (center column band)
+    col_frac = c["channel"][:, n // 2 - 2: n // 2 + 3].sum() / c["channel"].sum()
+    assert col_frac > 0.6, f"channel should hug the valley, got {col_frac:.2f}"
+    # breach snaps onto the river at the dam, not blind center
+    br, bc = c["breach"]
+    assert c["snapped"] and abs(bc - n // 2) <= 2
+    assert c["stats"]["burn_max_m"] > 0
+
+
+def test_conditioned_run_routes_down_valley():
+    e = _valley_elev()
+    r = run_scenario(e, 100.0, _params())
+    assert r.conditioning and r.conditioning["channel_cells"] > 0
+    n = e.shape[0]
+    wet = r.maxdepth_m >= 0.05
+    band = np.zeros_like(wet)
+    band[:, n // 2 - 2: n // 2 + 3] = True
+    frac = (wet & band).sum() / max(wet.sum(), 1)
+    assert frac > 0.6, f"flood must follow the river, got {frac:.2f}"
+    assert r.flooded_area_km2 > 0
+
+
+def test_conditioned_run_conserves_mass():
+    e = _slope_elev()
+    r = run_scenario(e, 100.0, _params())
+    assert abs(r.volume_stored_m3 - r.volume_in_m3) / r.volume_in_m3 < 1e-9
+
+
+def test_conditioning_flat_plain_falls_back_to_center():
+    e = np.full((48, 48), 100.0)  # no drainage at all
+    c = condition_domain(e)
+    assert c["breach"] == (24, 24) and not c["snapped"]
+
+
+def test_inflow_trail_pushes_water_downstream():
+    # Same release, point tap vs distributed trail: identical volume in,
+    # but the wave front must carry a larger share downstream.
+    e = _valley_elev()
+    n = e.shape[0]
+    p = _params()
+    r_point = propagate(e, 100.0, p)
+    r_wave = run_scenario(e, 100.0, p)
+    assert abs(r_wave.volume_in_m3 - r_point.volume_in_m3) / r_point.volume_in_m3 < 1e-9
+    assert r_wave.conditioning["inflow_cells"] > 3
+    share_point = r_point.maxdepth_m[n // 2:, :].sum() / r_point.maxdepth_m.sum()
+    br = r_wave.conditioning["breach_rc"][0]
+    share_wave = r_wave.maxdepth_m[br:, :].sum() / r_wave.maxdepth_m.sum()
+    assert share_wave > share_point
+
+
+def test_weir_inflow_conserves_volume_and_peaks_early():
+    e = _valley_elev()
+    r = run_scenario(e, 100.0, _params())
+    assert abs(r.volume_stored_m3 - r.volume_in_m3) / r.volume_in_m3 < 1e-6
+    # seed mound (10 m over the 3x2 breach zone) + exact 2e6 weir release
+    assert abs((r.volume_in_m3 - 600000.0) - 2e6) / 2e6 < 1e-6
+    # early-peaked release: most volume enters in the first half
+    assert r.frames and r.frames[0]["t_min"] < 60.0
+
+
+def test_rainfall_alone_does_not_flood_the_domain():
+    # 20 mm/h storm minus 12 mm/h abstraction on a flat plain: no cell may
+    # cross the 0.05 m inundation cutoff from rain by itself.
+    e = np.full((48, 48), 100.0)
+    p = _params(breach_width_m=10.0, breach_depth_m=0.5,
+                initial_release_m3=1000.0, rainfall_factor=1.0,
+                duration_min=180.0)
+    r = propagate(e, 100.0, p)
+    assert r.flooded_area_km2 < 2.0, f"rain ponding leaked: {r.flooded_area_km2}"
+
+
+def test_api_run_carries_river_conditioning():
+    body = {"dam_id": "d4", "scenario": _params().model_dump(), "grid_size": 48}
+    r = client.post("/api/v1/sandbox/run", json=body)
+    assert r.status_code == 200, r.text[:300]
+    j = r.json()
+    assert "channel-conditioned" in j["summary"]["model"]
+    rc = j["river_conditioning"]
+    assert rc["channel_cells"] > 0 and rc["burn_max_m"] > 0
 
 
 # ── Registry + providers (no network) ──────────────────────────────

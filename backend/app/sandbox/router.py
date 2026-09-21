@@ -31,6 +31,11 @@ from app.sandbox.schemas import (
     RunRequest,
 )
 from app.sandbox.terrain import available_dams, load_elevation, resolve_dam
+from app.sandbox.terrain_capture import (
+    CaptureError,
+    capture_status,
+    capture_terrain,
+)
 from app.sandbox.terrain_providers import TerrainUnavailableError
 
 router = APIRouter()
@@ -119,8 +124,15 @@ async def run_simulation(body: RunRequest):
         "scenario": scenario.model_dump(),
         "simulation": {
             "status": "completed",
-            "solver": "sandbox-diffusive-screening-v1",
-            "solver_note": "Terrain-constrained diffusive propagation (Manning-analogue). "
+            "solver": "sandbox-diffusive-screening-v2",
+            "solver_note": "Terrain-constrained diffusive propagation (Manning-analogue) "
+                           "over D8 river-conditioned terrain: burned channels, "
+                           "breach snapped to the river at the dam, release "
+                           "distributed along the downstream channel (wave "
+                           "front, not a point tap) and shaped by the "
+                           "broad-crested-weir breach hydrograph, split "
+                           "channel/floodplain conveyance, rainfall minus "
+                           "soil abstraction. "
                            "Screening model — NOT hydrodynamics/CFD/HEC-RAS.",
             "duration_min": round(result.sim_minutes, 1),
             "timesteps": len(result.frames or []),
@@ -130,6 +142,7 @@ async def run_simulation(body: RunRequest):
         "grid": body.grid_size,
         "cell_m": round(cell_m, 2),
         "bbox_wsen": bbox,
+        "river_conditioning": result.conditioning,
         "summary": summary,
         "hydrograph": hydrograph,
         "frames": result.frames or [],
@@ -140,7 +153,7 @@ async def run_simulation(body: RunRequest):
             "dem_source": meta["terrain"].get("source"),
             "dem_dataset": meta["terrain"].get("dataset"),
             "dem_fallback_used": meta["terrain"].get("fallback_used", False),
-            "solver_version": "sandbox-diffusive-screening-v1",
+            "solver_version": "sandbox-diffusive-screening-v2",
         },
         "warnings": [
             "Screening-level model: compare cases, do not treat outputs as predictions.",
@@ -246,6 +259,36 @@ async def get_assets(dam_id: str):
     meta = _dam_meta(dam_id)
     raw, provenance = assets_mod.load_assets(dam_id, meta["lat"], meta["lon"])
     return {"dam_id": dam_id, "provenance": provenance, "total": len(raw), "assets": raw}
+
+
+@router.get("/terrain/{dam_id}/status", dependencies=[Depends(require_role("viewer"))])
+async def get_terrain_status(dam_id: str):
+    """Whether a standalone 3D terrain GLB is published for this dam."""
+    if get_dam(dam_id) is None:
+        raise HTTPException(status_code=404, detail=f"Unknown dam id '{dam_id}'")
+    return capture_status(dam_id)
+
+
+@router.post("/terrain/{dam_id}/capture", dependencies=[Depends(require_role("viewer"))])
+async def capture_3d_terrain(dam_id: str):
+    """Build + publish a standalone 3D terrain for any registry dam.
+
+    Uses the same real-DEM provider chain the sandbox simulates on, textures
+    it with Esri World Imagery, and writes <dam_id>.glb (+ metadata/transform)
+    into the frontend terrain tree. Re-capture overwrites.
+    """
+    if get_dam(dam_id) is None:
+        raise HTTPException(status_code=404, detail=f"Unknown dam id '{dam_id}'")
+    try:
+        result = capture_terrain(dam_id)
+        result["mode"] = "REAL TERRAIN CAPTURE (provider-chain DEM + Esri imagery)"
+        return result
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except (CaptureError, TerrainUnavailableError) as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:  # defensive: never leak a stack trace to the client
+        raise HTTPException(status_code=503, detail=f"Terrain capture failed: {e}")
 
 
 @router.get("/demo/tehri", dependencies=[Depends(require_role("viewer"))])

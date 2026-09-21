@@ -19,16 +19,18 @@
  *
  *   DamSafe mission layers (unchanged semantics):
  *     dam / village / facility markers + flood water polygon from
- *     impactData, synced bidirectionally with the 2D GeoLibre view via
- *     cameraTarget / onCameraChange.
+ *     impactData, synced with the console via cameraTarget / onCameraChange.
+ *     (Water simulation itself lives on the Local3D dam mesh — the globe
+ *     is purely the situational view.)
  *
  * No private keys ever touch the browser — keyed feeds (AISStream, FIRMS,
  * TomTom, OpenAI voice) stay disabled until a server-side proxy exists.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Building2, Camera, Crosshair, Eye, Link2, LocateFixed, Minus, Plane, Plus, Radio, Radar, RotateCcw, Satellite, Zap } from 'lucide-react';
+import { ArrowDown, ArrowUp, Building2, Camera, Compass, Crosshair, Eye, Globe, Link2, LocateFixed, Minus, Plane, Plus, Radio, Radar, RotateCcw, Satellite, Zap } from 'lucide-react';
 import type { ImpactData } from '../../modules/incident-console/hooks';
+import { INDIA_DAMS } from '../../data/india-dams';
 import { fetchOSMContextGeo } from '../local-3d/osmContext';
 import {
   MAX_FLIGHTS,
@@ -49,6 +51,8 @@ interface GodEye3DProps {
   onCameraChange: (target: { lon: number; lat: number; heightM: number }) => void;
   /** Dam focus (drives presets, flights bbox, reset). Falls back to impactData / Machhu. */
   focusDam?: { lon: number; lat: number; name: string } | null;
+  /** Bumped on every sidebar dam pick so re-clicking the same dam reflys the camera. */
+  focusNonce?: number;
 }
 
 type BasemapKind = 'esri' | 'osm' | 'ion';
@@ -109,7 +113,7 @@ export function decodeShare(hash: string): ShareState | null {
   }
 }
 
-export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCameraChange, focusDam }: GodEye3DProps) {
+export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCameraChange, focusDam, focusNonce = 0 }: GodEye3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<any>(null);
   const cesiumRef = useRef<any>(null);
@@ -272,12 +276,47 @@ export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCame
       viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#0f172a');
       viewer.scene.globe.enableLighting = false;
 
-      // Free zoom: globe surface ↔ deep space. Defaults can trap the wheel
-      // at either end, so set explicit limits + step zoom below as backup.
+      // ── Render quality (crisper than the stock GeoLibre embed) ──
+      try {
+        viewer.resolutionScale = Math.min(window.devicePixelRatio || 1, 2);
+      } catch { /* headless */ }
+      viewer.scene.globe.maximumScreenSpaceError = 1.4;
+      viewer.scene.globe.depthTestAgainstTerrain = true;
+      viewer.scene.fog.enabled = true;
+      if (viewer.scene.skyAtmosphere) viewer.scene.skyAtmosphere.show = true;
+      try {
+        viewer.terrainShadows = Cesium.ShadowMode.RECEIVE_ONLY;
+      } catch { /* ellipsoid fallback has no shadows */ }
+
+      // ── Camera controls: globe-smooth, never under the terrain ──
+      // Collision stays ON so the camera can't dive below the terrain skin
+      // (the classic "lost under the map" weirdness); zoom limits + step
+      // zoom keep both ends of the range reachable instead.
       const controller = viewer.scene.screenSpaceCameraController;
-      controller.minimumZoomDistance = 2;
-      controller.maximumZoomDistance = 100000000;
+      controller.minimumZoomDistance = 10;
+      controller.maximumZoomDistance = 40000000;
       controller.enableCollisionDetection = true;
+      controller.enableRotate = true;
+      controller.enableTranslate = true;
+      controller.enableZoom = true;
+      controller.enableTilt = true;
+      controller.enableLook = true;
+      controller.inertiaSpin = 0.45;
+      controller.inertiaTranslate = 0.45;
+      controller.inertiaZoom = 0.55;
+      controller.zoomFactor = 1.5;
+      controller.maximumMovementRatio = 0.6;
+      // Map-like gestures: left-drag orbits, right-drag pans, wheel/pinch
+      // zooms, middle-drag tilts. (Cesium's stock mapping puts zoom on
+      // right-drag, which fights pan — this is the single biggest nav win.)
+      controller.rotateEventTypes = Cesium.CameraEventType.LEFT_DRAG;
+      controller.translateEventTypes = Cesium.CameraEventType.RIGHT_DRAG;
+      controller.zoomEventTypes = [Cesium.CameraEventType.WHEEL, Cesium.CameraEventType.PINCH];
+      controller.tiltEventTypes = [
+        Cesium.CameraEventType.MIDDLE_DRAG,
+        Cesium.CameraEventType.PINCH,
+        { eventType: Cesium.CameraEventType.LEFT_DRAG, modifier: Cesium.KeyboardEventModifier.CTRL },
+      ];
 
       const startLon = restored?.c[0] ?? damLonRef.current;
       const startLat = restored?.c[1] ?? damLatRef.current;
@@ -301,7 +340,8 @@ export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCame
         setHud((h) => ({ ...h, lon, lat, h: carto.height }));
       });
 
-      // Click-to-track anything (GEV signature): lock camera, trail, metadata.
+      // Click a DAM pin → dive the camera to that dam site (and track it).
+      // Click anything else → track it (GEV signature: card + trail).
       const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
       clickHandlerRef.current = handler;
       handler.setInputAction((movement: any) => {
@@ -317,8 +357,55 @@ export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCame
               : '',
           });
           trailRef.current = [];
+          const eid = String(entity.id);
+          if (eid === 'dam-marker' || eid.startsWith('dam-')) {
+            try {
+              const pos = entity.position?.getValue?.(Cesium.JulianDate.now());
+              if (pos) {
+                const carto = Cesium.Cartographic.fromCartesian(pos);
+                viewer.trackedEntity = undefined;
+                viewer.camera.flyTo({
+                  destination: Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, 2600),
+                  orientation: { heading: 0, pitch: Cesium.Math.toRadians(-58), roll: 0 },
+                  duration: 2.2,
+                });
+              }
+            } catch { /* tracked card still shows */ }
+          }
         }
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+      // Double-click anything (dam pin, village, terrain) → dive to it.
+      handler.setInputAction((movement: any) => {
+        const picked = viewer.scene.pick(movement.position);
+        const entity = picked?.id;
+        try {
+          const pos = entity?.position?.getValue?.(Cesium.JulianDate.now());
+          if (pos) {
+            const carto = Cesium.Cartographic.fromCartesian(pos);
+            viewer.camera.flyTo({
+              destination: Cesium.Cartesian3.fromRadians(
+                carto.longitude,
+                carto.latitude,
+                Math.max(1200, carto.height + 1500),
+              ),
+              orientation: { heading: 0, pitch: Cesium.Math.toRadians(-58), roll: 0 },
+              duration: 1.8,
+            });
+            return;
+          }
+        } catch { /* fall through to terrain pick */ }
+        const ray = viewer.camera.getPickRay(movement.position);
+        const globePos = ray ? viewer.scene.globe.pick(ray, viewer.scene) : undefined;
+        if (globePos) {
+          const carto = Cesium.Cartographic.fromCartesian(globePos);
+          viewer.camera.flyTo({
+            destination: Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, 2500),
+            orientation: { heading: 0, pitch: Cesium.Math.toRadians(-58), roll: 0 },
+            duration: 1.8,
+          });
+        }
+      }, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
 
       // Detection overlay painter — projects contacts to screen space.
       let lastPaint = 0;
@@ -409,9 +496,12 @@ export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCame
     }
   }, [cameraTarget]);
 
-  // ── Mission entities from impactData (dam / villages / facilities / water) ──
+  // ── Mission entities: dam pins ALWAYS (all 50 dams when no sim is
+  // loaded, so the globe is useful on its own); villages / facilities /
+  // water only when impactData exists. Pins are clickable (track) and
+  // double-clickable (dive) via the handlers above. ──
   useEffect(() => {
-    if (!viewerRef.current || !cesiumRef.current || !impactData) return;
+    if (!viewerRef.current || !cesiumRef.current || !ready) return;
     const viewer = viewerRef.current;
     const Cesium = cesiumRef.current;
     removeIds(entitiesRef.current);
@@ -421,31 +511,90 @@ export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCame
       if (added?.id) entitiesRef.current.push(added.id as string);
     };
 
-    add({
-      id: 'dam-marker',
-      name: impactData.dam.name,
-      description: `Dam • height ${impactData.dam.height_m} m`,
-      position: Cesium.Cartesian3.fromDegrees(impactData.dam.lon, impactData.dam.lat, impactData.dam.height_m),
-      point: {
-        pixelSize: 14,
-        color: Cesium.Color.fromCssColorString('#1e40af'),
-        outlineColor: Cesium.Color.WHITE,
-        outlineWidth: 3,
-        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-      },
-      label: {
-        text: `🛡️ ${impactData.dam.name}`,
-        font: '13px sans-serif',
-        fillColor: Cesium.Color.WHITE,
-        outlineColor: Cesium.Color.BLACK,
-        outlineWidth: 2,
-        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-        pixelOffset: new Cesium.Cartesian2(0, -18),
-        scaleByDistance: new Cesium.NearFarScalar(1000, 1, 20000, 0.5),
-      },
-    });
+    const isClose = (lon: number, lat: number) =>
+      Math.abs(lon - damLon) < 1e-6 && Math.abs(lat - damLat) < 1e-6;
 
+    if (impactData) {
+      add({
+        id: 'dam-marker',
+        name: impactData.dam.name,
+        description: `Dam • height ${impactData.dam.height_m} m`,
+        // Height 0 + CLAMP_TO_GROUND: the pin sits exactly on the terrain
+        // skin at any zoom (a fixed altitude would float or bury it).
+        position: Cesium.Cartesian3.fromDegrees(impactData.dam.lon, impactData.dam.lat, 0),
+        point: {
+          pixelSize: 14,
+          color: Cesium.Color.fromCssColorString('#1e40af'),
+          outlineColor: Cesium.Color.WHITE,
+          outlineWidth: 3,
+          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+          disableDepthTestDistance: 0,
+        },
+        label: {
+          text: `🛡️ ${impactData.dam.name}`,
+          font: '13px sans-serif',
+          fillColor: Cesium.Color.WHITE,
+          outlineColor: Cesium.Color.BLACK,
+          outlineWidth: 2,
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+          pixelOffset: new Cesium.Cartesian2(0, -18),
+          scaleByDistance: new Cesium.NearFarScalar(1000, 1, 20000, 0.5),
+        },
+      });
+    } else {
+      // Standalone globe: every dam is a pin; the focused dam is larger
+      // and keeps its label readable from farther out.
+      for (const d of INDIA_DAMS) {
+        const focused = isClose(d.lon, d.lat);
+        // Translucent ground halo under the focused dam — readable at any
+        // zoom, and it marks the exact site footprint.
+        if (focused) {
+          add({
+            id: `dam-halo-${d.id}`,
+            name: `${d.name} site`,
+            position: Cesium.Cartesian3.fromDegrees(d.lon, d.lat, 0),
+            point: {
+              pixelSize: 30,
+              color: Cesium.Color.fromCssColorString('#0ea5e9').withAlpha(0.22),
+              outlineColor: Cesium.Color.WHITE.withAlpha(0.85),
+              outlineWidth: 1.5,
+              heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+              disableDepthTestDistance: 0,
+            },
+          });
+        }
+        add({
+          id: `dam-${d.id}`,
+          name: d.name,
+          description: `Dam • ${d.state} • ${d.river} • height ${d.height_m} m • storage ${d.capacity_mcm.toLocaleString()} MCM`,
+          position: Cesium.Cartesian3.fromDegrees(d.lon, d.lat, 0),
+          point: {
+            pixelSize: focused ? 16 : 9,
+            color: Cesium.Color.fromCssColorString(focused ? '#0ea5e9' : '#1e40af'),
+            outlineColor: Cesium.Color.WHITE,
+            outlineWidth: focused ? 3 : 2,
+            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+            disableDepthTestDistance: 0,
+          },
+          label: {
+            text: focused ? `🛡️ ${d.name}` : d.name,
+            font: focused ? '13px sans-serif' : '10px sans-serif',
+            fillColor: Cesium.Color.WHITE,
+            outlineColor: Cesium.Color.BLACK,
+            outlineWidth: 2,
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+            pixelOffset: new Cesium.Cartesian2(0, -14),
+            scaleByDistance: focused
+              ? new Cesium.NearFarScalar(1000, 1, 40000, 0.5)
+              : new Cesium.NearFarScalar(800, 1, 9000, 0.3),
+          },
+        });
+      }
+    }
+
+    if (impactData) {
     impactData.villages.forEach((v) => {
       const flooded = v.flooded;
       const remaining = Math.max(0, v.arrival_time_min - timeMinutes);
@@ -529,9 +678,10 @@ export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCame
         },
       });
     }
+    } // end if (impactData): villages / facilities / water need a sim
     refreshContactCount();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [impactData, timeMinutes]);
+  }, [impactData, timeMinutes, ready, focusDam]);
 
   // ── Live layer: USGS earthquakes (keyless, 5-min refresh) ───────────
   useEffect(() => {
@@ -758,6 +908,33 @@ export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCame
     else viewer.camera.zoomIn(step);
   }, []);
 
+  // ── Orbit in place: tilt the pitch / spin the bearing without moving ──
+  // Powers the rail buttons + Q/E/R/F keys. setView with orientation only
+  // keeps the position fixed, so the dam never drifts out of frame.
+  const orbitBy = useCallback((dHeading: number, dPitch: number) => {
+    const viewer = viewerRef.current;
+    const Cesium = cesiumRef.current;
+    if (!viewer || !Cesium) return;
+    const p = viewer.camera.pitch + dPitch;
+    viewer.camera.setView({
+      orientation: {
+        heading: viewer.camera.heading + dHeading,
+        pitch: Math.min(-0.06, Math.max(-1.53, p)),
+        roll: viewer.camera.roll,
+      },
+    });
+  }, []);
+
+  /** Straighten up: face north at the classic −58° survey tilt. */
+  const levelCompass = useCallback(() => {
+    const viewer = viewerRef.current;
+    const Cesium = cesiumRef.current;
+    if (!viewer || !Cesium) return;
+    viewer.camera.setView({
+      orientation: { heading: 0, pitch: Cesium.Math.toRadians(-58), roll: 0 },
+    });
+  }, []);
+
   // ── Trail sampler for the tracked contact ───────────────────────────
   useEffect(() => {
     if (!ready || !tracked) return;
@@ -838,7 +1015,27 @@ export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCame
     setFollow(false);
   }, []);
 
-  // ── Reset globe / share link ────────────────────────────────────────
+  // ── Dam focus: sidebar dam picks dive the camera to the site ──
+  // This is what makes God's Eye beat the GeoLibre embed — every dam
+  // click flies the globe to a close terrain view instead of sitting
+  // at the continental overview.
+  const focusKey = focusDam ? `${focusDam.lon.toFixed(5)}|${focusDam.lat.toFixed(5)}|${focusDam.name}` : '';
+  useEffect(() => {
+    if (!ready || !focusDam) return;
+    const viewer = viewerRef.current;
+    const Cesium = cesiumRef.current;
+    if (!viewer || !Cesium) return;
+    if (viewer.trackedEntity) viewer.trackedEntity = undefined;
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(focusDam.lon, focusDam.lat, 2600),
+      orientation: { heading: 0, pitch: Cesium.Math.toRadians(-58), roll: 0 },
+      duration: 2.4,
+    });
+    // focusNonce re-flies even when the same dam is picked twice.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, focusKey, focusNonce]);
+
+  // ── Reset globe / zoom-to-dam / fit-India / share link ────────────────
   const resetGlobe = useCallback(() => {
     const viewer = viewerRef.current;
     const Cesium = cesiumRef.current;
@@ -850,6 +1047,32 @@ export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCame
       duration: 2,
     });
   }, [damLon, damLat, releaseTrack]);
+
+  /** Close terrain dive on the focused dam (same framing as sidebar picks). */
+  const zoomToDam = useCallback(() => {
+    const viewer = viewerRef.current;
+    const Cesium = cesiumRef.current;
+    if (!viewer || !Cesium) return;
+    releaseTrack();
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(damLon, damLat, 2600),
+      orientation: { heading: 0, pitch: Cesium.Math.toRadians(-58), roll: 0 },
+      duration: 2,
+    });
+  }, [damLon, damLat, releaseTrack]);
+
+  /** Continental overview framing all of India. */
+  const fitIndia = useCallback(() => {
+    const viewer = viewerRef.current;
+    const Cesium = cesiumRef.current;
+    if (!viewer || !Cesium) return;
+    releaseTrack();
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(78.5, 21.5, 3200000),
+      orientation: { heading: 0, pitch: Cesium.Math.toRadians(-90), roll: 0 },
+      duration: 2.2,
+    });
+  }, [releaseTrack]);
 
   const shareLink = useCallback(() => {
     const viewer = viewerRef.current;
@@ -876,22 +1099,27 @@ export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCame
     );
   }, [sensor, quakesOn, flightsOn, showDetect, tracked, flash]);
 
-  // ── Keyboard: 1-5 sensors · H HUD · D detection · C cockpit · Esc out · +/− zoom ──
+  // ── Keyboard: 1-5 sensors · H HUD · D detection · C cockpit · Esc out
+  //   +/− zoom · Q/E bearing · R/F tilt ──
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
       const k = e.key.toLowerCase();
+      if (k === '+' || k === '=') { stepZoom(-1); return; }
+      if (k === '-' || k === '_') { stepZoom(1); return; }
       if (k >= '1' && k <= '5') setSensor(SENSOR_ORDER[Number(k) - 1]);
       else if (k === 'h') setShowHud((v) => !v);
       else if (k === 'd') setShowDetect((v) => !v);
       else if (k === 'c' && tracked) enterCockpit();
       else if (k === 'escape') releaseTrack();
-      else if (k === '+' || k === '=') stepZoom(-1);
-      else if (k === '-' || k === '_') stepZoom(1);
+      else if (k === 'q') orbitBy(-0.18, 0);
+      else if (k === 'e') orbitBy(0.18, 0);
+      else if (k === 'r') orbitBy(0, 0.12);
+      else if (k === 'f') orbitBy(0, -0.12);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [tracked, enterCockpit, releaseTrack, stepZoom]);
+  }, [tracked, enterCockpit, releaseTrack, stepZoom, orbitBy]);
 
   const S = SENSORS[sensor];
 
@@ -937,31 +1165,61 @@ export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCame
         </div>
       )}
 
-      {/* ── Control rail ── */}
-      <div className="absolute top-3 right-3 z-20 flex flex-col gap-1.5 items-end">
-        <div className="flex gap-1.5">
+      {/* ── Control rail: grouped clusters with breathing room ── */}
+      <div className="absolute top-3 right-3 z-20 flex flex-col gap-2.5 items-end">
+        {/* Zoom cluster — stays live even under the sandbox nav lock */}
+        <div className="flex gap-1.5 p-1.5 rounded-xl border border-cmd-border bg-[#0A1218]/90">
           <button onClick={() => stepZoom(-1)} title="Zoom in (+ key)"
-            className="p-2 rounded-lg border border-cmd-border bg-[#0A1218]/90 text-cmd-muted hover:text-cmd-ink hover:border-cmd-teal/40 transition-colors">
+            className="p-2 rounded-lg text-cmd-muted hover:text-cmd-ink hover:bg-white/[0.06] transition-colors">
             <Plus className="w-4 h-4" />
           </button>
           <button onClick={() => stepZoom(1)} title="Zoom out (− key)"
-            className="p-2 rounded-lg border border-cmd-border bg-[#0A1218]/90 text-cmd-muted hover:text-cmd-ink hover:border-cmd-teal/40 transition-colors">
+            className="p-2 rounded-lg text-cmd-muted hover:text-cmd-ink hover:bg-white/[0.06] transition-colors">
             <Minus className="w-4 h-4" />
           </button>
+        </div>
+        {/* Tilt / bearing cluster */}
+        <div className="flex gap-1.5 p-1.5 rounded-xl border border-cmd-border bg-[#0A1218]/90">
+          <button onClick={() => orbitBy(0, 0.12)} title="Tilt up — see the horizon (R)"
+            className="p-2 rounded-lg text-cmd-muted hover:text-cmd-ink hover:bg-white/[0.06] transition-colors">
+            <ArrowUp className="w-4 h-4" />
+          </button>
+          <button onClick={() => orbitBy(0, -0.12)} title="Tilt down — top-down survey (F)"
+            className="p-2 rounded-lg text-cmd-muted hover:text-cmd-ink hover:bg-white/[0.06] transition-colors">
+            <ArrowDown className="w-4 h-4" />
+          </button>
+          <button onClick={levelCompass} title="Face north at survey tilt"
+            className="p-2 rounded-lg text-cmd-muted hover:text-cmd-ink hover:bg-white/[0.06] transition-colors">
+            <Compass className="w-4 h-4" />
+          </button>
+        </div>
+        {/* View cluster */}
+        <div className="flex gap-1.5 p-1.5 rounded-xl border border-cmd-border bg-[#0A1218]/90">
+          <button onClick={zoomToDam} title={`Dive to ${damName} (close terrain view)`}
+            className="p-2 rounded-lg text-cmd-muted hover:text-cmd-ink hover:bg-white/[0.06] transition-colors">
+            <LocateFixed className="w-4 h-4" />
+          </button>
+          <button onClick={fitIndia} title="Fit India (continental overview)"
+            className="p-2 rounded-lg text-cmd-muted hover:text-cmd-ink hover:bg-white/[0.06] transition-colors">
+            <Globe className="w-4 h-4" />
+          </button>
           <button onClick={resetGlobe} title="Reset globe (dam overview)"
-            className="p-2 rounded-lg border border-cmd-border bg-[#0A1218]/90 text-cmd-muted hover:text-cmd-ink hover:border-cmd-teal/40 transition-colors">
+            className="p-2 rounded-lg text-cmd-muted hover:text-cmd-ink hover:bg-white/[0.06] transition-colors">
             <RotateCcw className="w-4 h-4" />
           </button>
           <button onClick={shareLink} title="Copy share link (camera + style + layers + target)"
-            className="p-2 rounded-lg border border-cmd-border bg-[#0A1218]/90 text-cmd-muted hover:text-cmd-ink hover:border-cmd-teal/40 transition-colors">
+            className="p-2 rounded-lg text-cmd-muted hover:text-cmd-ink hover:bg-white/[0.06] transition-colors">
             <Link2 className="w-4 h-4" />
           </button>
+        </div>
+        {/* Overlay cluster */}
+        <div className="flex gap-1.5 p-1.5 rounded-xl border border-cmd-border bg-[#0A1218]/90">
           <button onClick={() => setShowHud((v) => !v)} title="Toggle HUD (H)"
-            className={`p-2 rounded-lg border bg-[#0A1218]/90 transition-colors ${showHud ? 'text-cmd-teal border-cmd-teal/50' : 'text-cmd-muted border-cmd-border hover:text-cmd-ink'}`}>
+            className={`p-2 rounded-lg transition-colors ${showHud ? 'text-cmd-teal bg-cmd-teal/10' : 'text-cmd-muted hover:text-cmd-ink hover:bg-white/[0.06]'}`}>
             <Radar className="w-4 h-4" />
           </button>
           <button onClick={() => setShowDetect((v) => !v)} title="Toggle detection overlay (D)"
-            className={`p-2 rounded-lg border bg-[#0A1218]/90 transition-colors ${showDetect ? 'text-cmd-teal border-cmd-teal/50' : 'text-cmd-muted border-cmd-border hover:text-cmd-ink'}`}>
+            className={`p-2 rounded-lg transition-colors ${showDetect ? 'text-cmd-teal bg-cmd-teal/10' : 'text-cmd-muted hover:text-cmd-ink hover:bg-white/[0.06]'}`}>
             <Crosshair className="w-4 h-4" />
           </button>
         </div>
