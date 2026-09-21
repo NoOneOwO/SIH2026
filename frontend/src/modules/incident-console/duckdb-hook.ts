@@ -11,7 +11,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { VillageData, RoadData, FacilityData } from './hooks';
+import type { VillageData, RoadData, FacilityData } from '../../types/impact';
 
 interface DuckDBState {
   db: any | null;

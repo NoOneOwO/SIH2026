@@ -22,7 +22,13 @@ interface StatCardProps {
   value: number | string;
   label: string;
   caption: string;
-  spark: number[];
+  /** Optional secondary line (registry context, assessment detail). */
+  sub?: string;
+  /**
+   * Optional trend series. Only pass real time-series data — a decorative
+   * sparkline would imply a trend the platform does not have.
+   */
+  spark?: number[];
   tone: StatTone;
 }
 
@@ -47,7 +53,7 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
   );
 }
 
-export default function StatCard({ icon: Icon, value, label, caption, spark, tone }: StatCardProps) {
+export default function StatCard({ icon: Icon, value, label, caption, sub, spark, tone }: StatCardProps) {
   const s = TONE_STYLES[tone];
   return (
     <div className="cmd-card flex flex-col justify-between gap-3 p-4">
@@ -61,11 +67,13 @@ export default function StatCard({ icon: Icon, value, label, caption, spark, ton
             <span className="mt-1.5 block text-[12.5px] leading-tight text-cmd-ink/90">{label}</span>
           </span>
         </div>
-        <Sparkline data={spark} color={s.line} />
+        {spark && spark.length > 1 && <Sparkline data={spark} color={s.line} />}
       </div>
-      <div className="flex items-center justify-between border-t border-cmd-border/70 pt-2.5">
-        <span className="text-[11.5px] text-cmd-muted">{caption}</span>
-        <ArrowUpRight className="h-3.5 w-3.5 text-cmd-teal" strokeWidth={2} aria-hidden="true" />
+      <div className="flex items-start justify-between gap-2 border-t border-cmd-border/70 pt-2.5">
+        <span className="min-w-0">
+          <span className="block text-[11.5px] text-cmd-muted">{caption}</span>
+          {sub && <span className="mt-0.5 block text-[11px] leading-snug text-cmd-muted/85">{sub}</span>}
+        </span>
       </div>
     </div>
   );

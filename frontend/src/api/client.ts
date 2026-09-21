@@ -92,12 +92,31 @@ export const simRunsApi = {
 
 // ── Impact Analysis ───────────────────────────────────────────────────────────
 
+export interface ImpactEstimateParams {
+  dam_id: string;
+  /** Scenario preset from the parameter agent — inputs only, never outcomes. */
+  case?: 'best' | 'likely' | 'worst';
+  grid_size?: number;
+  /** Scenario runs used for the per-cell exposure frequency (0 = skip). */
+  ensemble_count?: number;
+  seed?: number;
+}
+
 export const impactApi = {
   getPriorities: (simRunId: string) => apiFetch<any>(`/impact/${simRunId}/priority`),
   getRoadStatus: (simRunId: string, t: number = 0) =>
     apiFetch<any>(`/impact/${simRunId}/roads?t=${t}`),
   getHazard: (simRunId: string) => apiFetch<any>(`/impact/${simRunId}/hazard`),
   getFacilities: (simRunId: string) => apiFetch<any>(`/impact/${simRunId}/facilities`),
+  /**
+   * Transparent impact estimate: which settlements are exposed, how many
+   * people, what the damage could be and what early action could avoid.
+   * Every figure returns with an evidence class and a confidence level.
+   */
+  estimate: (params: ImpactEstimateParams) =>
+    apiFetch<any>('/impact/estimate', {
+      method: 'POST', body: JSON.stringify(params),
+    }),
 };
 
 // ── Alerts ────────────────────────────────────────────────────────────────────

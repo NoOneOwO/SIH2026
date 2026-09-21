@@ -5,7 +5,7 @@
 
 import {
   House, Zap, Shield, AlertTriangle,
-  Users, FileText, Bot, ShieldCheck,
+  Users, FileText, Bot, ShieldCheck, Waves,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -18,6 +18,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { path: '/dashboard', labelKey: 'nav.dashboard', fallbackLabel: 'Dashboard', icon: House },
+  { path: '/impact', labelKey: 'nav.floodImpact', fallbackLabel: 'Flood Impact', icon: Waves },
   { path: '/incident', labelKey: 'nav.incidentConsole', fallbackLabel: 'Incident Console', icon: Zap },
   { path: '/eap', labelKey: 'nav.eapDashboard', fallbackLabel: 'EAP Dashboard', icon: Shield },
   { path: '/alerts', labelKey: 'nav.alertConsole', fallbackLabel: 'Alert Console', icon: AlertTriangle },

@@ -14,7 +14,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { X, Users, Droplets, AlertTriangle, PanelLeftClose, PanelLeft, Globe, Search, Layers, Play, Pause, RotateCcw, Building, Mountain, Focus, FlaskConical, Box, MapPin } from 'lucide-react';
+import { X, Users, Droplets, AlertTriangle, PanelLeftClose, PanelLeft, Globe, Search, Layers, Building, Mountain, Focus, FlaskConical, Box, MapPin } from 'lucide-react';
 import { INDIA_DAMS, DamPoint } from '../../data/india-dams';
 import { sandboxApi } from '../../api/client';
 import Local3DView, { type FloodOverlay } from '../../viewers/local-3d/Local3DView';
@@ -50,29 +50,40 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
-function classifyHazard(dam: DamPoint) {  const heightScore = Math.min(dam.height_m / 300, 1);
+/**
+ * Dam screening index — a HEURISTIC headline for the dam registry, computed
+ * only from two published dam facts (height and reservoir capacity).
+ *
+ * It is NOT a flood forecast and it carries NO population or damage numbers:
+ * downstream exposure comes from the impact assessment (`/impact`), which
+ * samples the simulated water at real mapped settlements. Keeping those
+ * concerns apart is deliberate — this chip must never imply an impact figure
+ * the model did not compute.
+ */
+function classifyHazard(dam: DamPoint) {
+  const heightScore = Math.min(dam.height_m / 300, 1);
   const capacityScore = Math.min(dam.capacity_mcm / 15000, 1);
   const composite = heightScore * 0.6 + capacityScore * 0.4;
 
   if (composite > 0.7) return {
     level: 'EXTREME' as const, color: '#dc2626', bgColor: '#fef2f2',
-    description: 'Catastrophic breach potential — massive downstream inundation',
-    downstreamPopEstimate: Math.round(dam.capacity_mcm * 85),
+    description:
+      'Tall dam with a very large reservoir. Breach consequences are classed high in this screening index — run an impact assessment for real exposure figures.',
   };
   if (composite > 0.45) return {
     level: 'HIGH' as const, color: '#ea580c', bgColor: '#fff7ed',
-    description: 'Significant breach risk — major downstream impact',
-    downstreamPopEstimate: Math.round(dam.capacity_mcm * 55),
+    description:
+      'Large dam/reservoir combination. This index only ranks dam size; downstream population and damage come from the impact assessment.',
   };
   if (composite > 0.2) return {
     level: 'MODERATE' as const, color: '#ca8a04', bgColor: '#fefce8',
-    description: 'Moderate risk — localized flooding expected',
-    downstreamPopEstimate: Math.round(dam.capacity_mcm * 30),
+    description:
+      'Mid-sized structure in this index. Localized consequences are typical, but the index does not model any flood.',
   };
   return {
     level: 'LOW' as const, color: '#16a34a', bgColor: '#f0fdf4',
-    description: 'Lower risk — limited downstream consequences',
-    downstreamPopEstimate: Math.round(dam.capacity_mcm * 15),
+    description:
+      'Smaller structure in this index. Limited downstream consequences are typical — still worth an impact assessment where people live downstream.',
   };
 }
 
@@ -91,47 +102,28 @@ function formatType(type: string) {
   return map[type] || type;
 }
 
-// ── Generate simulated flood polygon around a dam ──────────────────
-function generateFloodPolygon(dam: DamPoint, progress: number): GeoJSON.Feature {
-  // Flood expands downstream and laterally over time
-  const kmPerDeg = 111;
-  const downstreamKm = (dam.capacity_mcm / 500) * progress * 2;
-  const lateralKm = downstreamKm * 0.35;
-  const segments = 24;
-  const coords: [number, number][] = [];
-
-  for (let i = 0; i <= segments; i++) {
-    const angle = (i / segments) * Math.PI * 2;
-    const rx = (lateralKm / kmPerDeg) * Math.cos(angle) * (1 + 0.5 * Math.sin(angle * 2));
-    const ry = (downstreamKm / kmPerDeg) * Math.sin(angle) * (1 + 0.3 * Math.cos(angle * 3));
-    coords.push([dam.lon + rx, dam.lat + ry * 0.7]);
-  }
-  coords.push(coords[0]);
-
-  return {
-    type: 'Feature',
-    properties: { dam_id: dam.id, progress },
-    geometry: { type: 'Polygon', coordinates: [coords] },
-  };
-}
-
-// ── Inline MapLibre: Satellite + 3D Terrain + Flood Simulation ────
-function InlineMapLibre({ onDamClick, selectedDam, onMapReady, focusPoint }: {
+// ── Inline MapLibre: Satellite + 3D Terrain globe (keyless) ────
+// NOTE: this fallback view renders NO water. Flood layers only ever come from
+// a real simulation (local 3D terrain, LISFLOOD panel, or the /impact
+// assessment) — this map previously drew a decorative "flood" polygon derived
+// from reservoir capacity, which was removed because it was not a model output.
+function InlineMapLibre({ onDamClick, selectedDam, onMapReady, focusPoint, onAssess }: {
   onDamClick: (d: DamPoint) => void; selectedDam: DamPoint | null;
   onMapReady: (map: any) => void;
   focusPoint?: { lon: number; lat: number; label: string; damlon: number; damlat: number } | null;
+  onAssess?: (d: DamPoint) => void;
 }) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
-  const [floodProgress, setFloodProgress] = useState(0);
-  const [floodPlaying, setFloodPlaying] = useState(false);
-  const [showFlood, setShowFlood] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
   const [showBuildings, setShowBuildings] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
+  const [notice, setNotice] = useState('');
   const defaultZoomRef = useRef<{ min: number; max: number } | null>(null);
 
-  const floodIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Optional MapTiler key for the vector-tile 3D buildings view. Never
+  // hardcoded: configure VITE_MAPTILER_KEY in the environment instead.
+  const maptilerKey = (import.meta.env.VITE_MAPTILER_KEY as string | undefined) || '';
 
   // ── City waypoint (Evacuation Planner links): amber dot + dashed dam link
   useEffect(() => {
@@ -294,7 +286,7 @@ function InlineMapLibre({ onDamClick, selectedDam, onMapReady, focusPoint }: {
 
 
 
-      map.addControl(new mgl.NavigationControl({ visualizePitch: true }), 'top-right');
+      map.addControl(new mgl.NavigationControl({ visualizePitch: true }), 'bottom-right');
       map.addControl(new mgl.ScaleControl(), 'bottom-left');
       map.addControl(new mgl.AttributionControl({ compact: true }), 'bottom-right');
 
@@ -394,33 +386,6 @@ function InlineMapLibre({ onDamClick, selectedDam, onMapReady, focusPoint }: {
           },
         });
 
-        // ── Flood overlay ────────────────────────────────────────
-        map.addSource('flood-extent', {
-          type: 'geojson',
-          data: { type: 'FeatureCollection', features: [] },
-        });
-        map.addLayer({
-          id: 'flood-fill', type: 'fill', source: 'flood-extent',
-          paint: {
-            'fill-color': [
-              'interpolate', ['linear'], ['get', 'progress'],
-              0, 'rgba(59,130,246,0.1)',
-              0.3, 'rgba(59,130,246,0.25)',
-              0.6, 'rgba(37,99,235,0.4)',
-              1, 'rgba(30,64,175,0.55)',
-            ],
-            'fill-opacity': 0.7,
-          },
-        });
-        map.addLayer({
-          id: 'flood-outline', type: 'line', source: 'flood-extent',
-          paint: {
-            'line-color': '#3b82f6',
-            'line-width': 2,
-            'line-opacity': 0.8,
-          },
-        });
-
         // ── Click handler ────────────────────────────────────────
         map.on('click', 'dams-dots', (e: any) => {
           if (!e.features?.length) return;
@@ -441,6 +406,13 @@ function InlineMapLibre({ onDamClick, selectedDam, onMapReady, focusPoint }: {
     <div className="relative w-full h-full">
       <div ref={mapContainer} className="w-full h-full" />
 
+      {/* ── Transient notices (missing key, etc.) ─────────────────── */}
+      {notice && (
+        <div className="absolute bottom-24 left-1/2 z-20 -translate-x-1/2 rounded-lg border border-cmd-amber/40 bg-[#0A1218]/92 px-3 py-1.5 text-[10.5px] text-cmd-amber">
+          {notice}
+        </div>
+      )}
+
       {/* ── Focus badge ──────────────────────────────────────────── */}
       {focusMode && selectedDam && (
         <div className="absolute top-3 left-3 z-20 px-3 py-1.5 bg-slate-900/90 text-white text-[10px] font-bold rounded-full shadow-md">
@@ -448,8 +420,10 @@ function InlineMapLibre({ onDamClick, selectedDam, onMapReady, focusPoint }: {
         </div>
       )}
 
-      {/* ── Map controls overlay ───────────────────────────────────── */}
-      <div className="absolute top-3 right-14 z-20 flex flex-col gap-2">
+      {/* ── Map controls overlay ─────────────────────────────────────
+           Stacked in one right-aligned column below the parent console's
+           rail / mode switch / status pill so nothing overlaps. */}
+      <div className="absolute top-[8.75rem] right-3 z-20 flex flex-col gap-2">
         {/* Dam-focus toggle: dam + nearby areas only, globe stops rendering */}
         <button onClick={() => { if (focusMode) exitFocusMode(); else if (selectedDam) enterFocusMode(selectedDam); }}
           disabled={!focusMode && !selectedDam}
@@ -471,6 +445,11 @@ function InlineMapLibre({ onDamClick, selectedDam, onMapReady, focusPoint }: {
 
         {/* Buildings/Terrain toggle */}
         <button onClick={() => {
+    if (!maptilerKey && !showBuildings) {
+      setNotice('3D buildings need a vector-tile provider key (VITE_MAPTILER_KEY). Everything else works without one.');
+      window.setTimeout(() => setNotice(''), 4500);
+      return;
+    }
     const next = !showBuildings;
     setShowBuildings(next);
     const map = mapRef.current;
@@ -492,7 +471,11 @@ function InlineMapLibre({ onDamClick, selectedDam, onMapReady, focusPoint }: {
           glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
           sources: {
             satellite: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256, maxzoom: 18 },
-            buildings: { type: 'vector', tiles: ['https://api.maptiler.com/tiles/v3/{z}/{x}/{y}.pbf?key=ApGvqBRr1WbzGPnokdoZ'], maxzoom: 15 },
+            // Keyless by default: the buildings view needs VITE_MAPTILER_KEY
+            // (or any vector provider) — a tile key must never be committed.
+            ...(maptilerKey
+              ? { buildings: { type: 'vector' as const, tiles: [`https://api.maptiler.com/tiles/v3/{z}/{x}/{y}.pbf?key=${maptilerKey}`], maxzoom: 15 } }
+              : {}),
           },
           layers: [{ id: 'satellite', type: 'raster', source: 'satellite' }],
         } : {
@@ -512,15 +495,15 @@ function InlineMapLibre({ onDamClick, selectedDam, onMapReady, focusPoint }: {
           maxPitch: 75, fadeDuration: 0, antialias: true,
         });
 
-        newMap.addControl(new mgl.NavigationControl({ visualizePitch: true }), 'top-right');
+        newMap.addControl(new mgl.NavigationControl({ visualizePitch: true }), 'bottom-right');
         newMap.addControl(new mgl.ScaleControl(), 'bottom-left');
         newMap.addControl(new mgl.AttributionControl({ compact: true }), 'bottom-right');
 
         newMap.on('load', () => {
           if (next) {
+            if (!maptilerKey) return;  // no vector provider configured: raster only
             newMap.addLayer({ id: '3d-buildings', type: 'fill-extrusion', source: 'buildings', 'source-layer': 'building', minzoom: 13,
               paint: { 'fill-extrusion-color': '#3498db', 'fill-extrusion-height': ['coalesce', ['get', 'render_height'], 10], 'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0], 'fill-extrusion-opacity': 1 } });
-            console.log('Fresh map: 3D buildings layer added');
           } else {
             newMap.setProjection({ type: 'globe' });
             newMap.setTerrain({ source: 'terrain-dem', exaggeration: 1.0 });
@@ -547,44 +530,23 @@ function InlineMapLibre({ onDamClick, selectedDam, onMapReady, focusPoint }: {
           {showBuildings ? <Mountain className="w-4 h-4" /> : <Building className="w-4 h-4" />}
         </button>
 
-        {/* Flood toggle */}
-        <button onClick={() => { console.log("Flood click! current=" + showFlood); setShowFlood(!showFlood); if (!showFlood) setFloodProgress(0.5); }}
-          className={`p-2 rounded-lg border border-cmd-border bg-[#0A1218]/90 transition-colors ${showFlood ? 'text-cmd-teal border-cmd-teal/50' : 'text-cmd-muted hover:text-cmd-ink'}`}
-          title="Toggle flood extent overlay">
-          <Droplets className="w-4 h-4" />
-        </button>
       </div>
 
-      {/* ── Flood time slider ──────────────────────────────────────── */}
-      {showFlood && (
-        <div className="absolute bottom-6 left-4 right-4 z-20 bg-[#0A1218]/92 backdrop-blur border border-cmd-border rounded-xl p-3">
-          <div className="flex items-center gap-3 mb-2">
-            <button onClick={() => { setFloodPlaying(!floodPlaying); }}
-              className="p-1.5 rounded-lg bg-cmd-teal/90 text-[#071018] transition-colors">
-              {floodPlaying ? <Pause className="w-3.5 h-3.5" strokeWidth={2.25} /> : <Play className="w-3.5 h-3.5" strokeWidth={2.25} />}
-            </button>
-            <button onClick={() => { setFloodPlaying(false); setFloodProgress(0); }}
-              className="p-1.5 rounded-lg border border-cmd-border text-cmd-muted hover:text-cmd-ink transition-colors">
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
-            <div className="flex-1">
-              <input
-                type="range" min="0" max="100" value={Math.round(floodProgress * 100)}
-                onChange={(e) => { setFloodProgress(Number(e.target.value) / 100); setFloodPlaying(false); }}
-                className="w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-[#65BFA9] bg-cmd-track"
-              />
-            </div>
-            <span className="text-xs font-mono font-bold text-cmd-ink w-16 text-right tabular-nums">
-              T+{Math.round(floodProgress * 120)} min
-            </span>
-          </div>
-          <div className="flex items-center gap-4 text-[10px] text-cmd-muted">
-            <span className="tabular-nums">Progress: {Math.round(floodProgress * 100)}%</span>
-            <span className="tabular-nums">Flood extent radius: ~{((selectedDam || INDIA_DAMS[0]).capacity_mcm / 500 * floodProgress * 2).toFixed(1)} km</span>
-            <span className="ml-auto text-cmd-teal font-semibold">
-              {selectedDam ? selectedDam.name : 'Demo: Machhu Dam'} flood simulation
-            </span>
-          </div>
+      {/* Primary action on the fallback map: the only water this app shows
+          comes from a simulation, so point at the assessment instead. */}
+      {selectedDam && onAssess && (
+        <div className="absolute bottom-6 left-4 right-4 z-20 flex items-center gap-3 rounded-xl border border-cmd-border bg-[#0A1218]/92 p-3 backdrop-blur">
+          <Droplets className="w-4 h-4 shrink-0 text-cmd-teal" strokeWidth={1.9} />
+          <p className="min-w-0 flex-1 text-[11.5px] leading-snug text-cmd-muted">
+            No flood water is drawn here — modelled water only comes from a simulation.
+            <span className="text-cmd-ink"> Assess which settlements {selectedDam.name} could affect.</span>
+          </p>
+          <button
+            onClick={() => onAssess(selectedDam)}
+            className="shrink-0 rounded-lg bg-cmd-teal/90 px-3 py-1.5 text-[11px] font-bold text-[#071018] transition-colors hover:bg-cmd-teal"
+          >
+            Run impact assessment
+          </button>
         </div>
       )}
     </div>
@@ -962,21 +924,24 @@ export default function IncidentConsole() {
           </button>
         )}
 
-        <div className="absolute top-3 right-14 z-20">
+        {/* Basemap status pill — its own row under the mode switch */}
+        <div className="absolute top-[5.75rem] right-3 z-20">
           {geolibreOnline === null ? (
-            <div className="px-3 py-1.5 bg-[#0A1218]/90 border border-cmd-amber/40 text-cmd-amber text-[10px] font-bold rounded-full animate-pulse">Checking GeoLibre...</div>
+            <div className="px-3 py-1.5 bg-[#0A1218]/90 border border-cmd-amber/40 text-cmd-amber text-[10px] font-bold rounded-full animate-pulse">Checking GeoLibre…</div>
           ) : geolibreOnline ? (
             <div className="px-3 py-1.5 bg-[#0A1218]/90 border border-cmd-border text-cmd-ink text-[10px] font-bold rounded-full">
-              <span className="text-cmd-green">●</span> GeoLibre 3D Earth {geolibreReady ? '(Ready)' : '(Loading...)'}
+              <span className="text-cmd-green">●</span> GeoLibre {geolibreReady ? 'ready' : 'loading'}
             </div>
           ) : (
-            <div className="px-3 py-1.5 bg-[#0A1218]/90 border border-cmd-border text-cmd-ink text-[10px] font-bold rounded-full"><span className="text-cmd-green">●</span> Satellite + 3D Terrain</div>
+            <div className="px-3 py-1.5 bg-[#0A1218]/90 border border-cmd-border text-cmd-ink text-[10px] font-bold rounded-full">
+              <span className="text-cmd-green">●</span> Satellite + terrain
+            </div>
           )}
         </div>
 
         {/* God's Eye toggle — GEV 3D system inside the GeoLibre view */}
         {!(focusedDam && resolveModelSlug(focusedDam) && !forceMap) && (
-          <div className="absolute top-12 right-14 z-20 flex gap-1.5">
+          <div className="absolute top-14 right-3 z-20 flex justify-end gap-1.5">
             <button
               onClick={() => setGodEye(false)}
               className={`px-3 py-1.5 text-[10px] font-bold rounded-full border backdrop-blur transition-colors ${
@@ -1080,6 +1045,7 @@ export default function IncidentConsole() {
           />
         ) : geolibreOnline === false ? (
           <InlineMapLibre onDamClick={handleDamClick} selectedDam={selectedDam} onMapReady={(m) => { mapLibreRef.current = m; }}
+            onAssess={(d) => navigate(`/impact?dam=${d.id}`)}
             focusPoint={cityFocus ? { lon: cityFocus.lon, lat: cityFocus.lat, label: cityFocus.name, damlon: cityFocus.damlon, damlat: cityFocus.damlat } : null} />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-cmd-bg">
@@ -1170,30 +1136,40 @@ export default function IncidentConsole() {
 
             {hazard && (
               <div className="border-t border-cmd-border pt-3 mt-3">
-                <p className="text-[10px] uppercase tracking-[0.14em] text-cmd-muted font-bold mb-2">Downstream Impact Estimate</p>
+                <p className="text-[10px] uppercase tracking-[0.14em] text-cmd-muted font-bold mb-2">
+                  Dam screening index
+                </p>
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-1.5">
                     <Users className="w-4 h-4 text-cmd-amber" strokeWidth={1.75} />
                     <div>
-                      <p className="text-sm font-bold text-cmd-ink tabular-nums">{formatNumber(hazard.downstreamPopEstimate)}</p>
-                      <p className="text-[10px] text-cmd-muted">Est. population at risk</p>
+                      <p className="text-sm font-bold text-cmd-ink tabular-nums">{formatNumber(selectedDam.height_m)} m</p>
+                      <p className="text-[10px] text-cmd-muted">Structural height (published)</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Droplets className="w-4 h-4 text-cmd-teal" strokeWidth={1.75} />
                     <div>
                       <p className="text-sm font-bold text-cmd-ink tabular-nums">{(selectedDam.capacity_mcm * 0.001).toFixed(1)} km³</p>
-                      <p className="text-[10px] text-cmd-muted">Flood volume potential</p>
+                      <p className="text-[10px] text-cmd-muted">Reservoir capacity (derived)</p>
                     </div>
                   </div>
                 </div>
                 <p className="text-xs text-cmd-muted mt-2 leading-relaxed">{hazard.description}</p>
+                <p className="mt-1.5 text-[10.5px] text-cmd-muted/85">
+                  No population or damage figure is shown here — those are only produced by the impact assessment, which
+                  samples simulated water at real mapped settlements.
+                </p>
               </div>
             )}
 
-            <div className="border-t border-cmd-border pt-3 mt-3">
-              <button onClick={() => flyToDam(selectedDam)}
+            <div className="border-t border-cmd-border pt-3 mt-3 space-y-2">
+              <button onClick={() => navigate(`/impact?dam=${selectedDam.id}`)}
                 className="w-full px-3 py-2 bg-cmd-teal/90 hover:bg-cmd-teal text-[#071018] text-xs font-bold rounded-lg transition-colors">
+                Run flood impact assessment
+              </button>
+              <button onClick={() => flyToDam(selectedDam)}
+                className="w-full px-3 py-2 border border-cmd-border text-cmd-muted hover:text-cmd-ink text-xs font-bold rounded-lg transition-colors">
                 Fly to Dam on Satellite Map
               </button>
             </div>

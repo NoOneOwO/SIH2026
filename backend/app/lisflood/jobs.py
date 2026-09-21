@@ -472,6 +472,47 @@ def parse_results(job_id: str, manifest: dict) -> dict:
 
     mass = _parse_mass(out / "res.mass")
 
+    # ── Transparent impact estimate over the real hydraulic result ──────────
+    # Failure here must never invalidate a completed simulation: the estimate
+    # is reported as unavailable with its actual reason instead.
+    impact_estimate: dict | None = None
+    impact_estimate_error: str | None = None
+    try:
+        from app.impact import estimation as est
+        from app.sandbox.impact_run import settlements_from_assets
+
+        dam = manifest["dam"]
+        elevation, _ = read_asc(jobdir / "inputs" / "dem.asc")
+        raw_assets, provenance = assets_mod.load_assets(
+            dam["id"], float(dam["lat"]), float(dam["lon"]))
+        # Keep the sample-point exposure results (they carry real gauge depth/
+        # arrival) and use the full inventory for settlement + facility coverage.
+        settlements = settlements_from_assets(raw_assets)
+        if not settlements:  # fall back to the gauged points, labelled as such
+            settlements = [{"name": g.get("name", "gauge"), "kind": g.get("kind", "exposure_point"),
+                            "lat": g["lat"], "lon": g["lon"], "source": g.get("source", "modeled")}
+                           for g in manifest["gauges"]]
+        impact_estimate = est.estimate_impact(
+            depth_m=maxd,
+            arrival_min=np.where(wet, maxtm, -1.0),
+            bbox=[dem["west"], dem["north"] - maxd.shape[0] * cell_m,
+                  dem["west"] + maxd.shape[1] * cell_m, dem["north"]],
+            cell_m=cell_m,
+            dam={"name": dam["name"], "lat": dam["lat"], "lon": dam["lon"]},
+            settlements=settlements,
+            assets=raw_assets,
+            engine="lisflood-fp-5.9 (local-inertia)",
+            assets_provenance=provenance,
+            scenario={"label": f"{manifest['sim']['failure_mode']} breach",
+                      "breach_width_m": manifest["breach"]["width_m"],
+                      "initial_release_m3": manifest["reservoir"]["volume_m3"],
+                      "rainfall_factor": None},
+            speed_ms=speed,
+            elevation_m=elevation,
+        )
+    except Exception as e:  # noqa: BLE001 — reported, never silently dropped
+        impact_estimate_error = f"{type(e).__name__}: {e}"
+
     result = {
         "job_id": job_id,
         "engine": {"image": IMAGE, "version": "LISFLOOD-FP 5.9 (Bristol lineage, CPU)",
@@ -498,6 +539,8 @@ def parse_results(job_id: str, manifest: dict) -> dict:
         "flow_path": manifest.get("flow_path", []),
         "downstream": manifest.get("downstream", {}),
         "impacts": impacts + outside,
+        "impact_estimate": impact_estimate,
+        "impact_estimate_error": impact_estimate_error,
         "mass": mass,
     }
     (jobdir / "result.json").write_text(json.dumps(result), encoding="utf-8")

@@ -37,19 +37,28 @@ def _fresh(path: Path) -> bool:
         return False
 
 
+AMENITY_KINDS = {"hospital", "school", "police", "fire_station", "clinic", "college", "university"}
+
+
 def fetch_osm(lat: float, lon: float, radius_m: float = 8000) -> list[dict]:
-    """Small Overpass query: settlements, hospitals, bridges, power infra."""
+    """Small Overpass query: settlements, hospitals, bridges, power infra.
+
+    Only tags that OpenStreetMap actually carries are copied — in particular
+    `population` is passed through when a mapper recorded it, which lets the
+    impact model distinguish an OBSERVED population from a class median.
+    """
     # ~8 km radius keeps the query cheap; short timeout, one attempt here
     # (the caller treats failure as 'no OSM available').
     query = f"""
     [out:json][timeout:60];
     (
-      node["place"~"^(village|town|hamlet)$"](around:{radius_m},{lat},{lon});
-      node["amenity"="hospital"](around:{radius_m},{lat},{lon});
+      node["place"~"^(city|town|village|hamlet|suburb)$"](around:{radius_m},{lat},{lon});
+      node["amenity"~"^(hospital|school|police|fire_station|clinic|college|university)$"](around:{radius_m},{lat},{lon});
+      way["amenity"~"^(hospital|school|police|fire_station|clinic|college|university)$"](around:{radius_m},{lat},{lon});
       way["bridge"="yes"](around:{radius_m},{lat},{lon});
       node["power"~"^(substation|plant)$"](around:{radius_m},{lat},{lon});
     );
-    out center 50;
+    out center 200;
     """.strip()
     r = requests.post(OVERPASS_URL, data={"data": query}, timeout=70)
     r.raise_for_status()
@@ -64,18 +73,31 @@ def fetch_osm(lat: float, lon: float, radius_m: float = 8000) -> list[dict]:
             alat, alon = c.get("lat"), c.get("lon")
         if alat is None:
             continue
+        entry = {"lat": alat, "lon": alon, "source": "osm"}
         if "place" in tags:
-            kind = "village"
-        elif tags.get("amenity") == "hospital":
-            kind = "hospital"
+            # Settlement: keep the real place class + any recorded population.
+            place = str(tags.get("place") or "village")
+            entry["kind"] = place if place in ("city", "town", "village", "hamlet", "suburb") else "village"
+            entry["name"] = tags.get("name", f"Unnamed {entry['kind']}")
+            pop = tags.get("population")
+            if pop:
+                entry["population"] = pop
+            if tags.get("is_in:state"):
+                entry["state"] = tags["is_in:state"]
+            assets.append(entry)
+            continue
+        amenity = tags.get("amenity")
+        if amenity in AMENITY_KINDS:
+            kind = {"fire_station": "fire_station", "police": "police_station"}.get(amenity, amenity)
         elif "bridge" in tags:
             kind = "bridge"
+        elif tags.get("power") in ("substation", "plant"):
+            kind = "substation" if tags["power"] == "substation" else "plant"
         else:
             kind = "power"
-        assets.append({
-            "name": tags.get("name", f"Unnamed {kind}"),
-            "kind": kind, "lat": alat, "lon": alon, "source": "osm",
-        })
+        entry["kind"] = kind
+        entry["name"] = tags.get("name", f"Unnamed {kind.replace('_', ' ')}")
+        assets.append(entry)
     return assets
 
 

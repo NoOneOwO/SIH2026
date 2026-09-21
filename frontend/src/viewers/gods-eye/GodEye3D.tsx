@@ -26,9 +26,10 @@
  * TomTom, OpenAI voice) stay disabled until a server-side proxy exists.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Building2, Camera, Crosshair, Eye, Link2, LocateFixed, Minus, Plane, Plus, Radio, Radar, RotateCcw, Satellite, Zap } from 'lucide-react';
-import type { ImpactData } from '../../modules/incident-console/hooks';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Building2, Camera, Crosshair, Eye, Layers, Link2, LocateFixed, Minus, Plane, Plus, Radio, Radar, RotateCcw, Satellite, Zap } from 'lucide-react';
+import type { ImpactData, ImpactEstimate, RiskBand } from '../../types/impact';
+import { RISK_HEX } from '../../components/impact/format';
 import { fetchOSMContextGeo } from '../local-3d/osmContext';
 import {
   MAX_FLIGHTS,
@@ -49,6 +50,17 @@ interface GodEye3DProps {
   onCameraChange: (target: { lon: number; lat: number; heightM: number }) => void;
   /** Dam focus (drives presets, flights bbox, reset). Falls back to impactData / Machhu. */
   focusDam?: { lon: number; lat: number; name: string } | null;
+  /**
+   * Transparent impact estimate (from POST /impact/estimate). Optional and
+   * additive: when present it adds the flood-risk layer (affected zones +
+   * settlements sized by exposure), when absent the globe behaves exactly as
+   * before.
+   */
+  estimate?: ImpactEstimate | null;
+  /** Currently selected settlement id (highlighted on the globe). */
+  selectedSettlementId?: string | null;
+  /** Globe click on a settlement marker reports the id back to the dashboard. */
+  onSelectSettlement?: (id: string | null) => void;
 }
 
 type BasemapKind = 'esri' | 'osm' | 'ion';
@@ -109,12 +121,18 @@ export function decodeShare(hash: string): ShareState | null {
   }
 }
 
-export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCameraChange, focusDam }: GodEye3DProps) {
+export default function GodEye3D({
+  timeMinutes, impactData, cameraTarget, onCameraChange, focusDam,
+  estimate = null, selectedSettlementId = null, onSelectSettlement,
+}: GodEye3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<any>(null);
   const cesiumRef = useRef<any>(null);
   const clickHandlerRef = useRef<any>(null);
   const entitiesRef = useRef<string[]>([]);
+  const estIdsRef = useRef<string[]>([]);
+  const onSelectSettlementRef = useRef(onSelectSettlement);
+  onSelectSettlementRef.current = onSelectSettlement;
   const flightIdsRef = useRef<string[]>([]);
   const quakeIdsRef = useRef<string[]>([]);
   const trailRef = useRef<any[]>([]);
@@ -130,6 +148,10 @@ export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCame
   const [showDetect, setShowDetect] = useState(true);
   const [quakesOn, setQuakesOn] = useState(true);
   const [flightsOn, setFlightsOn] = useState(false);
+  // Impact estimate layer: affected zones + settlement markers.
+  const [riskLayerOn, setRiskLayerOn] = useState(true);
+  const [zoneLayerOn, setZoneLayerOn] = useState(true);
+  const [allLabels, setAllLabels] = useState(false);
   const [tracked, setTracked] = useState<{ id: string; label: string; detail: string } | null>(null);
   const [follow, setFollow] = useState(false);
   // OSM surroundings around the current camera view (any land, on demand).
@@ -142,9 +164,9 @@ export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCame
   const [notice, setNotice] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const damLon = focusDam?.lon ?? impactData?.dam.lon ?? 70.85;
-  const damLat = focusDam?.lat ?? impactData?.dam.lat ?? 22.83;
-  const damName = focusDam?.name ?? impactData?.dam.name ?? 'Machhu Dam';
+  const damLon = focusDam?.lon ?? impactData?.dam.lon ?? estimate?.dam.lon ?? 70.85;
+  const damLat = focusDam?.lat ?? impactData?.dam.lat ?? estimate?.dam.lat ?? 22.83;
+  const damName = focusDam?.name ?? impactData?.dam.name ?? estimate?.dam.name ?? 'Machhu Dam';
   const damLonRef = useRef(damLon);
   damLonRef.current = damLon;
   const damLatRef = useRef(damLat);
@@ -307,6 +329,12 @@ export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCame
       handler.setInputAction((movement: any) => {
         const picked = viewer.scene.pick(movement.position);
         const entity = picked?.id;
+        // Impact-layer settlement: report the selection up to the dashboard
+        // instead of starting a camera track.
+        if (typeof entity?.id === 'string' && entity.id.startsWith('est-settle-')) {
+          onSelectSettlementRef.current?.(entity.id.slice('est-settle-'.length));
+          return;
+        }
         if (entity?.id && entity?.description) {
           trackedIdRef.current = entity.id as string;
           setTracked({
@@ -532,6 +560,127 @@ export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCame
     refreshContactCount();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [impactData, timeMinutes]);
+
+  // ── Impact-estimate layer: predicted risk zones + affected settlements ──
+  // Everything drawn here comes from the transparent estimate payload: the
+  // marker colour is the settlement's risk band, the marker size is its
+  // exposed population, and the translucent zone is the modelled inundation
+  // footprint sampled at settlement resolution (never a decorative blob).
+  const rankedSettlements = useMemo(() => {
+    if (!estimate) return [];
+    return [...estimate.settlements].sort(
+      (a, b) => b.population_exposed.mid - a.population_exposed.mid,
+    );
+  }, [estimate]);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    const Cesium = cesiumRef.current;
+    if (!viewer || !Cesium || !ready) return;
+    removeIds(estIdsRef.current);
+    estIdsRef.current = [];
+    if (!estimate || !riskLayerOn) {
+      refreshContactCount();
+      return;
+    }
+    const ids: string[] = [];
+    const labelSet = new Set((allLabels ? rankedSettlements : rankedSettlements.slice(0, 6)).map((s) => s.id));
+    const zoneRadiusM = Math.max(300, estimate.engine.cell_m * 3);
+
+    rankedSettlements.forEach((s) => {
+      const selected = s.id === selectedSettlementId;
+      const size = Math.min(22, 6 + Math.sqrt(Math.max(1, s.population_exposed.mid)) / 6);
+      const hex = RISK_HEX[s.risk as RiskBand] ?? RISK_HEX.LOW;
+      const id = `est-settle-${s.id}`;
+      viewer.entities.add({
+        id,
+        name: s.name,
+        description:
+          `${s.risk} risk • ${s.status} • depth ${s.depth_m.toFixed(2)} m • pop exposed ` +
+          `${s.population_exposed.low.toLocaleString()}-${s.population_exposed.high.toLocaleString()}` +
+          (s.arrival_min != null ? ` • arrival T+${Math.round(s.arrival_min)} min` : '') +
+          ` • est. damage ₹${(s.damage.total.mid_inr / 1e7).toFixed(1)} Cr`,
+        position: Cesium.Cartesian3.fromDegrees(s.lon, s.lat),
+        point: {
+          pixelSize: selected ? size + 6 : size,
+          color: Cesium.Color.fromCssColorString(hex),
+          outlineColor: selected ? Cesium.Color.fromCssColorString('#65BFA9') : Cesium.Color.WHITE,
+          outlineWidth: selected ? 3 : 1.5,
+          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+        },
+        label: {
+          text:
+            `${s.name}\n${s.population_exposed.low.toLocaleString()}-${s.population_exposed.high.toLocaleString()} exposed` +
+            (s.arrival_min != null ? ` • T+${Math.round(s.arrival_min)}m` : ''),
+          font: selected ? 'bold 12px sans-serif' : '11px sans-serif',
+          show: labelSet.has(s.id) || selected,
+          fillColor: Cesium.Color.fromCssColorString(selected ? '#65BFA9' : hex),
+          outlineColor: Cesium.Color.BLACK,
+          outlineWidth: 2,
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          verticalOrigin: Cesium.VerticalOrigin.TOP,
+          pixelOffset: new Cesium.Cartesian2(0, 10),
+          scaleByDistance: new Cesium.NearFarScalar(500, 1.2, 40000, 0.4),
+        },
+      });
+      ids.push(id);
+
+      // Modelled inundation footprint at settlement resolution.
+      if (zoneLayerOn && s.status !== 'SAFE') {
+        const zoneId = `est-zone-${s.id}`;
+        viewer.entities.add({
+          id: zoneId,
+          name: `${s.name} modelled water zone`,
+          description: `Modelled inundation footprint sampled at settlement resolution (${Math.round(zoneRadiusM)} m radius). Not a surveyed flood boundary.`,
+          position: Cesium.Cartesian3.fromDegrees(s.lon, s.lat),
+          ellipse: {
+            semiMajorAxis: selected ? zoneRadiusM * 1.6 : zoneRadiusM,
+            semiMinorAxis: selected ? zoneRadiusM * 1.6 : zoneRadiusM,
+            material: Cesium.Color.fromCssColorString(hex).withAlpha(s.status === 'INUNDATED' ? 0.22 : 0.12),
+            outline: true,
+            outlineColor: Cesium.Color.fromCssColorString(hex).withAlpha(selected ? 0.9 : 0.45),
+            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+          },
+        });
+        ids.push(zoneId);
+      }
+    });
+
+    // Dam marker from the estimate (the globe had none when impactData is null).
+    const damLon = estimate.dam.lon;
+    const damLat = estimate.dam.lat;
+    if (damLon != null && damLat != null) {
+      viewer.entities.add({
+        id: 'est-dam',
+        name: estimate.dam.name,
+        description: `Assessment source • ${estimate.engine.name}`,
+        position: Cesium.Cartesian3.fromDegrees(damLon, damLat),
+        point: {
+          pixelSize: 12,
+          color: Cesium.Color.fromCssColorString('#8FA8B8'),
+          outlineColor: Cesium.Color.WHITE,
+          outlineWidth: 2,
+          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+        },
+        label: {
+          text: `🛡 ${estimate.dam.name}`,
+          font: 'bold 12px sans-serif',
+          fillColor: Cesium.Color.WHITE,
+          outlineColor: Cesium.Color.BLACK,
+          outlineWidth: 2,
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+          pixelOffset: new Cesium.Cartesian2(0, -16),
+          scaleByDistance: new Cesium.NearFarScalar(1000, 1, 40000, 0.5),
+        },
+      });
+      ids.push('est-dam');
+    }
+
+    estIdsRef.current = ids;
+    refreshContactCount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [estimate, riskLayerOn, zoneLayerOn, allLabels, selectedSettlementId, ready]);
 
   // ── Live layer: USGS earthquakes (keyless, 5-min refresh) ───────────
   useEffect(() => {
@@ -934,6 +1083,60 @@ export default function GodEye3D({ timeMinutes, impactData, cameraTarget, onCame
           <div className="px-3 py-1.5 bg-[#0A1218]/85 border border-cmd-border text-cmd-muted text-[10px] font-mono rounded-full tabular-nums">
             {hud.lon.toFixed(3)}° {hud.lat.toFixed(3)}° • {hud.h >= 1000 ? `${(hud.h / 1000).toFixed(1)} km` : `${Math.round(hud.h)} m`} • {hud.contacts} contacts
           </div>
+        </div>
+      )}
+
+      {/* ── Flood-risk legend (impact estimate layer) ── */}
+      {showHud && estimate && (
+        <div className="absolute top-14 left-3 z-20 w-56 rounded-xl border border-cmd-border bg-[#0A1218]/88 backdrop-blur px-3 py-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-cmd-muted">
+              <Layers className="w-3.5 h-3.5 text-cmd-teal" /> Flood risk layer
+            </p>
+            <button
+              onClick={() => setRiskLayerOn((v) => !v)}
+              title={riskLayerOn ? 'Hide the risk layer' : 'Show the risk layer'}
+              className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold ${riskLayerOn ? 'bg-cmd-teal/90 text-[#071018]' : 'bg-white/[0.08] text-cmd-muted'}`}
+            >
+              {riskLayerOn ? 'ON' : 'OFF'}
+            </button>
+          </div>
+          {riskLayerOn && (
+            <>
+              <ul className="mt-2 space-y-1">
+                {(['EXTREME', 'HIGH', 'MODERATE', 'LOW'] as const).map((band) => {
+                  const n = estimate.settlements.filter((s) => s.risk === band).length;
+                  return (
+                    <li key={band} className="flex items-center gap-2 text-[10.5px]">
+                      <span className="h-2 w-2 rounded-full" style={{ background: RISK_HEX[band] }} />
+                      <span className="flex-1 text-cmd-muted">{band} risk</span>
+                      <span className="font-mono tabular-nums text-cmd-ink">{n}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="mt-2 flex gap-1.5">
+                <button
+                  onClick={() => setZoneLayerOn((v) => !v)}
+                  title="Modelled water footprint sampled at settlement resolution"
+                  className={`flex-1 rounded px-1.5 py-1 text-[9.5px] font-bold transition-colors ${zoneLayerOn ? 'bg-cmd-teal/20 text-cmd-teal' : 'bg-white/[0.06] text-cmd-muted'}`}
+                >
+                  Water zones
+                </button>
+                <button
+                  onClick={() => setAllLabels((v) => !v)}
+                  title="Label every settlement instead of only the largest"
+                  className={`flex-1 rounded px-1.5 py-1 text-[9.5px] font-bold transition-colors ${allLabels ? 'bg-cmd-teal/20 text-cmd-teal' : 'bg-white/[0.06] text-cmd-muted'}`}
+                >
+                  All labels
+                </button>
+              </div>
+              <p className="mt-2 text-[9.5px] leading-snug text-cmd-muted/75">
+                Marker size = exposed population. Zones are the modelled footprint at settlement
+                resolution, not surveyed boundaries.
+              </p>
+            </>
+          )}
         </div>
       )}
 

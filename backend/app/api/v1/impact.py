@@ -4,9 +4,11 @@ DamSafe Twin — Impact Analysis Router
 Endpoints for evacuation priority, road passability, and hazard data.
 """
 
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.service import CurrentUser, require_role
@@ -15,6 +17,48 @@ from app.simulation.service import get_sim_run
 from app.impact import service
 
 router = APIRouter()
+
+
+class ImpactEstimateRequest(BaseModel):
+    """Inputs for the transparent impact estimate (hazard → avoided loss)."""
+
+    dam_id: str = Field(..., description="Terrain site id, e.g. 'd4' or 'd52'")
+    case: Literal["best", "likely", "worst"] = Field(
+        default="likely", description="Scenario preset from the parameter agent (inputs only)")
+    grid_size: int = Field(default=64, ge=32, le=256, description="Screening grid resolution")
+    ensemble_count: int = Field(
+        default=8, ge=0, le=24,
+        description="Scenario runs used for the per-cell exposure frequency (0 = skip)")
+    seed: int = 7
+
+
+@router.post("/estimate", dependencies=[Depends(require_role("viewer"))])
+async def estimate_impact_endpoint(body: ImpactEstimateRequest):
+    """Estimate which settlements are exposed and what the impact could be.
+
+    Runs the screening engine, then the documented impact chain
+    (hazard → exposure → vulnerability → impact → economic loss → avoided loss).
+    Every figure is returned with its evidence class (observed / derived /
+    modelled / assumed) plus a confidence level and the assumption list.
+    """
+    from app.sandbox.dam_registry import get_dam
+    from app.sandbox.impact_run import run_case
+    from app.sandbox.terrain_providers import TerrainUnavailableError
+
+    if get_dam(body.dam_id) is None:
+        raise HTTPException(status_code=404, detail=f"Unknown dam id '{body.dam_id}'")
+    try:
+        return run_case(
+            body.dam_id,
+            case=body.case,
+            grid_size=body.grid_size,
+            ensemble_count=body.ensemble_count,
+            seed=body.seed,
+        )
+    except TerrainUnavailableError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.get("/{sim_run_id}/priority")

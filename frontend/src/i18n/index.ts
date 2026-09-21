@@ -12,6 +12,7 @@ const resources = {
     translation: {
       // Navigation
       'nav.dashboard': 'Dashboard',
+      'nav.floodImpact': 'Flood Impact',
       'nav.incidentConsole': 'Incident Console',
       'nav.eapDashboard': 'EAP Dashboard',
       'nav.scenarioManager': 'Scenario Manager',
@@ -121,6 +122,7 @@ const resources = {
     translation: {
       // Navigation
       'nav.dashboard': 'डैशबोर्ड',
+      'nav.floodImpact': 'बाढ़ प्रभाव',
       'nav.incidentConsole': 'घटना कंसोल',
       'nav.eapDashboard': 'ईएपी डैशबोर्ड',
       'nav.scenarioManager': 'परिदृश्य प्रबंधक',

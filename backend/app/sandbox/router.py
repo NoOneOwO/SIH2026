@@ -22,6 +22,7 @@ from app.sandbox import explainer as expl
 from app.sandbox import scenarios as agent
 from app.sandbox.dam_registry import get_dam
 from app.sandbox.engine import run_scenario
+from app.sandbox.impact_run import build_estimate
 from app.sandbox.response import hydrograph_payload as _hydrograph_payload
 from app.sandbox.response import summarize as _summarize
 from app.sandbox.schemas import (
@@ -99,7 +100,7 @@ def _run_one(dam_id: str, scenario, grid_size: int, lat: float, lon: float):
     exposed = [ens.asset_exposure(a, result.arrival_min, result.maxdepth_m, cell_m, bbox)
                for a in raw_assets]
     exposed.sort(key=lambda a: (-a["priority"], a.get("arrival_min") or 1e9))
-    return result, bbox, cell_m, exposed, provenance, scenario, hydrograph
+    return result, bbox, cell_m, exposed, provenance, scenario, hydrograph, elev
 
 
 @router.post("/run", dependencies=[Depends(require_role("analyst"))])
@@ -107,10 +108,19 @@ async def run_simulation(body: RunRequest):
     """Run one scenario. Returns summary + hydrograph + frames + assets."""
     meta = _dam_meta(body.dam_id)
     scenario = body.scenario.model_copy(update={"seed": body.seed if body.seed is not None else body.scenario.seed})
-    result, bbox, cell_m, exposed, provenance, scenario, hydrograph = _run_one(
+    result, bbox, cell_m, exposed, provenance, scenario, hydrograph, elev = _run_one(
         body.dam_id, scenario, body.grid_size, meta["lat"], meta["lon"])
     summary = _summarize(result, exposed, hydrograph)
     explanation = expl.explain_run(summary, exposed, scenario.label)
+    # Transparent impact estimate (hazard → exposure → vulnerability → impact →
+    # loss → avoided loss) computed from THIS run — no extra API round trip.
+    estimate = build_estimate(
+        elevation=elev, cell_m=cell_m, bbox=bbox,
+        depth_m=result.maxdepth_m, arrival_min=result.arrival_min,
+        assets=exposed, provenance=provenance,
+        dam={"name": meta["name"], "lat": meta["lat"], "lon": meta["lon"]},
+        scenario=scenario.model_dump(), engine="sandbox-diffusive-screening-v1",
+    )
     return {
         "mode": "REAL COMPUTED SIMULATION",
         "dam_id": body.dam_id,
@@ -135,6 +145,7 @@ async def run_simulation(body: RunRequest):
         "frames": result.frames or [],
         "assets": exposed,
         "asset_provenance": provenance,
+        "impact_estimate": estimate,
         "explanation": explanation,
         "provenance": {
             "dem_source": meta["terrain"].get("source"),
@@ -163,13 +174,16 @@ async def run_ensemble(body: EnsembleRequest):
 
     cases: dict[str, dict] = {}
     for label, sc in [("best", triplet["best"]), ("likely", triplet["likely"]), ("worst", triplet["worst"])]:
-        result, bbox, cell_m, exposed, provenance, sc_res, hg = _run_one(body.dam_id, sc, body.grid_size, lat, lon)
+        result, bbox, cell_m, exposed, provenance, sc_res, hg, elev_worst = _run_one(
+            body.dam_id, sc, body.grid_size, lat, lon)
         cases[label] = {"summary": _summarize(result, exposed, hg), "params": sc_res.model_dump(),
                         "arrival": result.arrival_min, "depth": result.maxdepth_m}
+        if label == "worst":
+            worst_pack = (bbox, cell_m, exposed, provenance, sc_res, result, elev_worst)
 
     runs = []
     for sc in ensemble_params:
-        result, bbox, cell_m, _, _, sc_res, hg = _run_one(body.dam_id, sc, body.grid_size, lat, lon)
+        result, bbox, cell_m, _, _, sc_res, hg, _elev = _run_one(body.dam_id, sc, body.grid_size, lat, lon)
         runs.append({"label": sc_res.label, "summary": _summarize(result, [], hg),
                      "params": sc_res.model_dump(),
                      "arrival": result.arrival_min, "depth": result.maxdepth_m})
@@ -215,6 +229,19 @@ async def run_ensemble(body: EnsembleRequest):
     explanation = expl.explain_run(
         {**cases["worst"]["summary"], "drivers": drivers}, assets_out, "worst (ensemble)")
 
+    # Impact estimate on the worst case, with the ensemble's per-cell scenario
+    # frequency as the inundation likelihood (real spread, never invented).
+    w_bbox, w_cell, w_assets, w_prov, w_scenario, w_result, w_elev = worst_pack
+    # `w_assets` are the worst-case exposures already sampled by _run_one.
+    estimate = build_estimate(
+        elevation=w_elev, cell_m=w_cell, bbox=w_bbox,
+        depth_m=w_result.maxdepth_m, arrival_min=w_result.arrival_min,
+        assets=w_assets, provenance=w_prov,
+        dam={"name": meta["name"], "lat": lat, "lon": lon},
+        scenario=w_scenario.model_dump(), engine="sandbox-diffusive-screening-v1",
+        exposure_pct=agg["exposure_pct"], ensemble_runs=len(runs),
+    )
+
     payload_runs = [{"label": r["label"], "summary": r["summary"]} for r in runs]
     return {
         "mode": "REAL COMPUTED SIMULATION",
@@ -236,6 +263,7 @@ async def run_ensemble(body: EnsembleRequest):
         },
         "assets": assets_out,
         "asset_provenance": provenance,
+        "impact_estimate": estimate,
         "exposure_classes": "High-confidence ≥70% / Probable 40–70% / Low-probability <40% of scenarios (scenario-based indicators, NOT statistical guarantees)",
         "explanation": explanation,
     }

@@ -10,6 +10,7 @@ import Landing from './auth/Landing';
 import Login from './auth/Login';
 import Register from './auth/Register';
 import Dashboard from './modules/incident-console/Dashboard';
+import ImpactIntelligence from './modules/impact/ImpactIntelligence';
 import IncidentConsole from './modules/incident-console/IncidentConsole';
 import EapDashboard from './modules/eap-dashboard/EapDashboard';
 import AlertConsole from './modules/alert-console/AlertConsole';
@@ -32,6 +33,7 @@ export default function App() {
       <Route path="register" element={<Register />} />
       <Route element={<Layout />}>
         <Route path="dashboard" element={<ErrorBoundary fallbackLabel="Dashboard Error"><Dashboard /></ErrorBoundary>} />
+        <Route path="impact" element={<ErrorBoundary fallbackLabel="Impact Assessment Error"><ImpactIntelligence /></ErrorBoundary>} />
         <Route path="incident" element={<ErrorBoundary fallbackLabel="Incident Console Error"><IncidentConsole /></ErrorBoundary>} />
         <Route path="eap" element={<ErrorBoundary fallbackLabel="EAP Dashboard Error"><EapDashboard /></ErrorBoundary>} />
         <Route path="alerts" element={<ErrorBoundary fallbackLabel="Alert Console Error"><AlertConsole /></ErrorBoundary>} />
