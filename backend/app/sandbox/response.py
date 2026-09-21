@@ -64,7 +64,7 @@ def summarize(result, assets: list[dict], hydrograph: dict | None = None) -> dic
         "timesteps": len(result.frames or []),
         "severity_band": severity_band(peak_depth, area, len(crit)),
         "severity_note": "Heuristic screening band (depth/area/critical count), NOT a certified rating",
-        "model": "sandbox-diffusive-screening-v1 (NOT hydrodynamics)",
+        "model": "sandbox-diffusive-screening-v2 (D8 channel-conditioned; NOT hydrodynamics)",
     }
     if hydrograph is not None:
         out["peak_discharge_m3s"] = hydrograph["peak_discharge_m3s"]

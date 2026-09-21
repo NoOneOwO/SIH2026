@@ -47,6 +47,10 @@ export interface FloodOverlay {
   visible: boolean;
   /** Geo-aware LISFLOOD binding (absent = legacy proportional mapping). */
   geo?: FloodGeo;
+  /** Sandbox sim-domain bounds [west, south, east, north] in degrees
+   * (backend `bbox_wsen`). Lets the God's Eye globe drape the same grids
+   * as a terrain-following imagery overlay — no mesh required. */
+  bboxWsen?: [number, number, number, number];
   /** Per-frame depth grids for time animation (row-major rows*cols each). */
   frames?: Float32Array[];
   /** Frame timestamps (minutes). */
@@ -803,6 +807,13 @@ export default function Local3DView({ dam, slug, hazardColor, onShowMap, onClose
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
+    // Explicit navigation: left-drag orbits, middle-drag (wheel press)
+    // dollies/zooms, right-drag pans — the default dam-inspection feel.
+    controls.mouseButtons = {
+      LEFT: THREE.MOUSE.ROTATE,
+      MIDDLE: THREE.MOUSE.DOLLY,
+      RIGHT: THREE.MOUSE.PAN,
+    };
     controls.autoRotateSpeed = 0.7; // gentle cinematic drift when autoOrbit is on
     controlsRef.current = controls;
     controls.maxPolarAngle = Math.PI * 0.495; // stay above the terrain plane
@@ -1143,7 +1154,7 @@ export default function Local3DView({ dam, slug, hazardColor, onShowMap, onClose
 
       {/* Controls hint + data source */}
       <div className="absolute bottom-3 left-3 z-20 px-3 py-1.5 bg-[#0A1218]/85 text-cmd-muted text-[10px] rounded-full border border-cmd-border">
-        Drag to orbit • Scroll to zoom • Right-drag to pan
+        Left-drag orbit • Middle-drag / scroll zoom • Right-drag pan
       </div>
       {meta && (
         <div className="absolute bottom-3 right-3 z-20 px-3 py-1.5 bg-[#0A1218]/85 text-cmd-muted text-[10px] font-mono rounded-full border border-cmd-border">

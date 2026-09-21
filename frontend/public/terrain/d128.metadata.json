@@ -1,5 +1,5 @@
 {
-  "dam": "d128",
+  "dam": "Parambikulam Dam",
   "lat": 10.55,
   "lon": 76.65,
   "bbox_radius_km": 5.0,
@@ -24,8 +24,8 @@
   },
   "vertical_exaggeration": 1.0,
   "sources": {
-    "dem": "OpenTopography:COP30",
+    "dem": "curated-DEM (existing)",
     "texture": "Esri:World_Imagery"
   },
-  "created_utc": "2026-09-09T08:37:52.697403+00:00"
+  "created_utc": "2026-09-21T13:43:45.125017+00:00"
 }

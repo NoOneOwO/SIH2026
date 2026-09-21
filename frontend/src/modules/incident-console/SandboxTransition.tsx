@@ -27,22 +27,31 @@ const STEP_MS = 1500;
 
 interface SandboxTransitionProps {
   damName: string;
+  /** Preloaded results landed — finish early instead of playing all steps. */
+  ready: boolean;
   onDone: () => void;
 }
 
-export default function SandboxTransition({ damName, onDone }: SandboxTransitionProps) {
+export default function SandboxTransition({ damName, ready, onDone }: SandboxTransitionProps) {
   const [active, setActive] = useState(0);
+  const [minDone, setMinDone] = useState(false);
   const doneRef = useRef(onDone);
   doneRef.current = onDone;
 
+  // Minimum card time so the handoff reads even on a cached fast run.
   useEffect(() => {
-    if (active >= STEPS.length) {
+    const t = setTimeout(() => setMinDone(true), 3000);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    if (active >= STEPS.length || (ready && minDone)) {
       const t = setTimeout(() => doneRef.current(), 700);
       return () => clearTimeout(t);
     }
     const t = setTimeout(() => setActive((a) => a + 1), active === 0 ? 1000 : STEP_MS);
     return () => clearTimeout(t);
-  }, [active]);
+  }, [active, ready, minDone]);
 
   const progress = Math.min(100, Math.round((active / STEPS.length) * 100));
   const current = STEPS[Math.min(active, STEPS.length - 1)];

@@ -210,5 +210,15 @@ export const sandboxApi = {
       method: 'POST', body: JSON.stringify({ dam_id, count, seed, grid_size }),
     }),
   demoTehri: () => apiFetch<any>('/sandbox/demo/tehri'),
+  /** Standalone 3D terrain published for this dam (globe→sandbox bridge). */
+  terrainStatus: (dam_id: string) =>
+    apiFetch<any>(`/sandbox/terrain/${dam_id}/status`),
+  /** Build + publish the standalone 3D terrain for any registry dam.
+   * Real DEM fetch + GLB build takes ~10–25 s, hence the 90 s timeout. */
+  captureTerrain: (dam_id: string) =>
+    apiFetch<any>(`/sandbox/terrain/${dam_id}/capture`, {
+      method: 'POST',
+      signal: AbortSignal.timeout(90_000),
+    }),
 };
 

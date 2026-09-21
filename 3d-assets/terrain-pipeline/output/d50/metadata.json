@@ -1,5 +1,5 @@
 {
-  "dam": "d50",
+  "dam": "Vaigai Dam",
   "lat": 9.93,
   "lon": 77.62,
   "bbox_radius_km": 5.0,
@@ -24,8 +24,8 @@
   },
   "vertical_exaggeration": 1.0,
   "sources": {
-    "dem": "OpenTopography:COP30",
+    "dem": "curated-DEM (existing)",
     "texture": "Esri:World_Imagery"
   },
-  "created_utc": "2026-09-06T11:51:19.389359+00:00"
+  "created_utc": "2026-09-21T13:42:49.571010+00:00"
 }

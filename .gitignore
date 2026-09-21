@@ -17,3 +17,5 @@ __pycache__/
 backend/sims/
 # Local auth + broadcasts (users, ID documents, official broadcasts — NEVER commit)
 backend/data/
+# Local-only compose overrides (e.g. host port remaps) — NEVER commit
+infra/docker-compose.override.yml
