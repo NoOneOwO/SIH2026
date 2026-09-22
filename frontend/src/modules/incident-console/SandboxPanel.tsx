@@ -1,9 +1,10 @@
 /**
  * AquaShield 3D — Scenario Simulation Sandbox panel.
  *
- * Path: Dam → View Terrain → Enter Simulation Sandbox. Terrain stays locked
- * as the sim domain (camera/nav untouched); this panel owns scenario inputs,
- * run controls, timeline, results, and AI insights.
+ * Path: Dam → View 3D terrain / Run screening simulation → this panel.
+ * Terrain stays locked as the sim domain (camera/nav untouched); the panel
+ * owns scenario inputs, run controls, timeline, results and the run status
+ * (running / engine output / failure with setup steps — never a faked step).
  *
  * Scientific boundary (shown in-UI, not just docs): simplified
  * terrain-constrained screening model — NOT hydrodynamics/CFD/HEC-RAS.
@@ -12,7 +13,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { X, Play, Pause, RotateCcw, FlaskConical, Layers, Sparkles, Download, BrainCircuit, Bot, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Play, Pause, RotateCcw, FlaskConical, Layers, Sparkles, Download, Bot, ChevronDown, AlertTriangle, Globe, Loader2 } from 'lucide-react';
 import { dangerIndex, dangerSentence, bandForDepth } from '../../utils/danger';
 import { Area, AreaChart, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { sandboxApi } from '../../api/client';
@@ -21,16 +22,11 @@ import type { FloodOverlay } from '../../viewers/local-3d/Local3DView';
 
 interface SandboxPanelProps {
   dam: DamPoint;
-  autoDemo?: boolean;
+  /** Run the likely case as soon as the panel mounts (Run simulation entry). */
+  autoRun?: boolean;
   onFlood: (f: FloodOverlay | null) => void;
-  onClose: () => void;
-  /** Reports engine activity up (drives the floating "AI is predicting" label). */
-  onBusyChange?: (busy: boolean) => void;
-  /** Preloaded in the background while the handoff card shows (Run Sandbox flow). */
-  initialCases?: any;
-  initialRun?: any;
-  /** Timeline position already reached behind the thinking card (no rewind). */
-  initialTMin?: number;
+  /** Leave the simulation view (back to the globe). */
+  onExit: () => void;
 }
 
 function b64ToF32(b64: string): Float32Array {
@@ -39,6 +35,9 @@ function b64ToF32(b64: string): Float32Array {
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return new Float32Array(bytes.buffer);
 }
+
+/** Settlements (vs. facilities) — used for the plain-language exposure sentence. */
+const SETTLEMENT_KINDS = new Set(['city', 'town', 'village', 'hamlet', 'suburb', 'neighbourhood']);
 
 const DEFAULTS = {
   breach_width_m: 80,
@@ -50,8 +49,7 @@ const DEFAULTS = {
   duration_min: 180,
 };
 
-export default function SandboxPanel({ dam, autoDemo, onFlood, onClose, onBusyChange, initialCases, initialRun, initialTMin }: SandboxPanelProps) {
-  const autoRanRef = useRef(false);
+export default function SandboxPanel({ dam, autoRun, onFlood, onExit }: SandboxPanelProps) {
   const [params, setParams] = useState({ ...DEFAULTS, breach_severity: 'major' as string });
   const [cases, setCases] = useState<any | null>(null);
   const [activeCase, setActiveCase] = useState<'best' | 'likely' | 'worst' | 'custom'>('likely');
@@ -63,46 +61,31 @@ export default function SandboxPanel({ dam, autoDemo, onFlood, onClose, onBusyCh
   const [showDetails, setShowDetails] = useState(false);
   const [showAssets, setShowAssets] = useState(false);
   const navigate = useNavigate();
-  const [tMin, setTMin] = useState(initialTMin ?? 0);
-  const tMinRef = useRef(initialTMin ?? 0);
-  useEffect(() => {
-    tMinRef.current = tMin;
-  }, [tMin]);
+  const [tMin, setTMin] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(8); // sim-minutes per second
+  // True when the last failure was "nothing is listening on /api/v1".
+  const [backendDown, setBackendDown] = useState(false);
   const gridsRef = useRef<{ arrival: Float32Array; depth: Float32Array; rows: number; cols: number; key: string; bbox?: [number, number, number, number] } | null>(null);
   const maxT = run?.summary?.sim_minutes ?? 180;
 
-  // Report engine activity upward for the floating status label.
-  useEffect(() => {
-    onBusyChange?.(!!busy);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [busy]);
+  const fail = (e: any) => {
+    const down = e?.name === 'BackendUnavailableError';
+    setBackendDown(down);
+    setError(down ? 'The screening model runs on the backend, which is not answering.' : String(e?.message ?? e));
+  };
 
-  // Deterministic demo entry (?demo=1): auto-load cached Tehri bundle once.
+  // Deterministic demo entry: loads the precomputed Tehri bundle (no backend,
+  // no API keys). Offered only for Tehri, which is the dam it was built for.
+  const demoAvailable = dam.id === 'd4';
+  const autoRanRef = useRef(false);
   useEffect(() => {
-    if (autoDemo && !autoRanRef.current && dam.id === 'd4') {
+    if (autoRun && !autoRanRef.current) {
       autoRanRef.current = true;
-      doDemo();
+      void doRun();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoDemo, dam.id]);
-
-  // Background-preloaded run (Run Sandbox fires generate+run while the
-  // handoff card shows, so the panel opens onto live results — continuing
-  // the timeline instead of rewinding).
-  const preloadedRef = useRef(false);
-  useEffect(() => {
-    if (!initialRun || preloadedRef.current || gridsRef.current) return;
-    preloadedRef.current = true;
-    if (initialCases) setCases(initialCases);
-    setRun(initialRun);
-    setEnsemble(null);
-    setOverlayMode('run');
-    showRun(initialRun, tMinRef.current);
-    setPlaying(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialRun]);
+  }, [autoRun]);
 
   const set = (k: string, v: number | string) => setParams((p) => ({ ...p, [k]: v }));
 
@@ -148,45 +131,56 @@ export default function SandboxPanel({ dam, autoDemo, onFlood, onClose, onBusyCh
   }, [tMin]);
 
   // ── Actions ──────────────────────────────────────────────────────
-  const doGenerate = async () => {
-    setBusy('gen'); setError('');
-    try {
-      const res = await sandboxApi.generate(dam.id, 7, 10);
-      setCases(res);
-      setActiveCase('likely');
-    } catch (e: any) { setError(e.message); } finally { setBusy(''); }
-  };
-
-  const currentScenario = useMemo(() => {
-    if (activeCase === 'custom' || !cases) {
-      return { dam_id: dam.id, label: 'custom', reservoir_level_m: 0, breach_location: 'dam', timestep_s: 60, seed: 7, ...params };
-    }
-    return cases[activeCase];
-  }, [activeCase, cases, dam.id, params]);
-
-  const doRun = async () => {
+  const runCase = async (scenario: any) => {
     setBusy('run'); setError('');
     try {
-      const res = await sandboxApi.run(dam.id, currentScenario, 96);
+      const res = await sandboxApi.run(dam.id, scenario, 96);
+      setBackendDown(false);
       setRun(res);
       setEnsemble(null);
       setOverlayMode('run');
       setTMin(0);
       showRun(res, 0);
       setPlaying(true);
-    } catch (e: any) { setError(e.message); } finally { setBusy(''); }
+    } catch (e: any) { fail(e); } finally { setBusy(''); }
+  };
+
+  const doGenerate = async (thenRun = false) => {
+    setBusy('gen'); setError('');
+    try {
+      const res = await sandboxApi.generate(dam.id, 7, 10);
+      setBackendDown(false);
+      setCases(res);
+      setActiveCase('likely');
+      if (thenRun) await runCase(res.likely);
+    } catch (e: any) { fail(e); } finally { setBusy(''); }
+  };
+
+  const currentScenario = useMemo(() => {
+    if (activeCase === 'custom' || !cases) {
+      return { dam_id: dam.id, label: cases ? 'custom' : 'likely (default parameters)', reservoir_level_m: 0, breach_location: 'dam', timestep_s: 60, seed: 7, ...params };
+    }
+    return cases[activeCase];
+  }, [activeCase, cases, dam.id, params]);
+
+  /** Run the selected case. With no generated cases yet, generate + run the
+   * likely case first so one click always produces engine output. */
+  const doRun = async () => {
+    if (!cases && activeCase !== 'custom') await doGenerate(true);
+    else await runCase(currentScenario);
   };
 
   const doEnsemble = async () => {
     setBusy('ens'); setError('');
     try {
       const res = await sandboxApi.ensemble(dam.id, 10, 7, 64);
+      setBackendDown(false);
       setEnsemble(res);
       setOverlayMode('ensemble');
       setTMin(0);
       showEnsemble(res, 0);
       setPlaying(true);
-    } catch (e: any) { setError(e.message); } finally { setBusy(''); }
+    } catch (e: any) { fail(e); } finally { setBusy(''); }
   };
 
   const doDemo = async () => {
@@ -198,7 +192,9 @@ export default function SandboxPanel({ dam, autoDemo, onFlood, onClose, onBusyCh
         assets: bundle.assets, asset_provenance: bundle.asset_provenance,
         explanation: bundle.explanation, grids: bundle.grids,
         bbox_wsen: bundle.bbox_wsen,
+        demo_mode: bundle.mode,
       };
+      setBackendDown(false);
       setActiveCase('worst');
       setRun(demoRun);
       setEnsemble(null);
@@ -206,7 +202,7 @@ export default function SandboxPanel({ dam, autoDemo, onFlood, onClose, onBusyCh
       setTMin(0);
       showRun(demoRun, 0);
       setPlaying(true);
-    } catch (e: any) { setError(e.message); } finally { setBusy(''); }
+    } catch (e: any) { fail(e); } finally { setBusy(''); }
   };
 
   const doReset = () => {
@@ -260,8 +256,11 @@ export default function SandboxPanel({ dam, autoDemo, onFlood, onClose, onBusyCh
             </h3>
             <p className="text-[11px] text-cmd-muted">{dam.name} — terrain locked as sim domain</p>
           </div>
-          <button onClick={onClose} className="p-1 rounded hover:bg-white/[0.06] text-cmd-muted hover:text-cmd-ink">
-            <X className="w-4 h-4" />
+          {/* This panel sits over the terrain viewer's own top-right chrome,
+              so it carries the way back out. */}
+          <button onClick={onExit} title="Close the simulation and go back to the globe"
+            className="flex items-center gap-1 rounded-lg border border-cmd-border px-2 py-1 text-[10px] font-bold text-cmd-muted hover:text-cmd-ink hover:border-cmd-teal/40">
+            <ArrowLeft className="w-3.5 h-3.5" strokeWidth={2} /> <Globe className="w-3.5 h-3.5" strokeWidth={1.75} /> Globe
           </button>
         </div>
         {runMode && (
@@ -288,21 +287,60 @@ export default function SandboxPanel({ dam, autoDemo, onFlood, onClose, onBusyCh
           Screening model — terrain-constrained propagation, <b>not</b> hydrodynamics/CFD. Compare cases, don't treat outputs as predictions.
         </p>
 
-        {error && <p className="text-[11px] text-cmd-red bg-cmd-red/[0.08] border border-cmd-red/30 rounded-lg px-2 py-1.5 mb-3">{error}</p>}
-
-        {/* AI activity banner — visible while the model is computing */}
-        {!!busy && (
+        {/* ── Run status: idle / running / failed / done — never a faked step ── */}
+        {busy && (
           <div className="flex items-center gap-2.5 rounded-xl border border-cmd-teal/30 bg-cmd-teal/[0.08] px-3 py-2.5 mb-3">
-            <span className="relative flex h-2.5 w-2.5 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cmd-teal opacity-60" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cmd-teal" />
-            </span>
+            <Loader2 className="w-4 h-4 text-cmd-teal animate-spin shrink-0" />
             <div className="min-w-0">
-              <p className="text-[11px] font-bold text-cmd-ink">AI is predicting</p>
-              <p className="text-[10px] text-cmd-muted truncate">Running the water simulation — breach hydrograph → inundation → impacts</p>
+              <p className="text-[11px] font-bold text-cmd-ink">
+                {busy === 'gen' ? 'Generating breach parameter cases…'
+                  : busy === 'ens' ? 'Running 10 scenarios on the backend…'
+                  : busy === 'demo' ? 'Loading the precomputed demo bundle…'
+                  : 'Running the screening model on the backend…'}
+              </p>
+              <p className="text-[10px] text-cmd-muted">
+                Breach hydrograph → terrain-constrained inundation → settlement sampling
+              </p>
             </div>
-            <BrainCircuit className="w-4 h-4 text-cmd-teal ml-auto shrink-0" strokeWidth={1.75} />
           </div>
+        )}
+
+        {error && (
+          <div className="rounded-xl border border-cmd-red/30 bg-cmd-red/[0.08] px-3 py-2.5 mb-3">
+            <p className="flex items-start gap-2 text-[11px] font-semibold text-cmd-ink">
+              <AlertTriangle className="w-3.5 h-3.5 mt-px shrink-0 text-cmd-red" strokeWidth={2} />
+              <span className="min-w-0 break-words">{error}</span>
+            </p>
+            {backendDown && (
+              <>
+                <pre className="mt-2 overflow-x-auto rounded-lg border border-cmd-border bg-black/40 px-2 py-1.5 text-[9.5px] leading-relaxed text-cmd-ink/90">cd backend && uvicorn app.main:app --reload --port 8000</pre>
+                <p className="mt-1.5 text-[10px] text-cmd-muted">
+                  {demoAvailable
+                    ? 'No keys are needed once it is up. The precomputed Tehri demo below works without it.'
+                    : 'No API keys are needed once it is up.'}
+                </p>
+                <div className="mt-2 flex gap-1.5">
+                  <button onClick={() => void doGenerate(true)} className="rounded-lg border border-cmd-teal/50 px-2.5 py-1 text-[10.5px] font-bold text-cmd-teal hover:bg-cmd-tealdim">
+                    Retry
+                  </button>
+                  {demoAvailable && (
+                    <button onClick={doDemo} className="rounded-lg border border-cmd-green/50 px-2.5 py-1 text-[10.5px] font-bold text-cmd-green hover:bg-cmd-green/10">
+                      Load offline demo
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {run && !busy && !error && (
+          <p className="text-[10px] text-cmd-green bg-cmd-green/[0.08] border border-cmd-green/25 rounded-lg px-2 py-1.5 mb-3">
+            <b>{run.demo_mode ? 'Offline demo loaded' : 'Engine output on the terrain'}</b>
+            {' — '}{run.summary?.flooded_area_km2} km² modelled inundation, deepest {run.summary?.max_depth_anywhere_m} m,
+            {' '}{run.summary?.timesteps ?? 0} checkpoints over T+{Math.round(run.summary?.sim_minutes ?? 0)} min.
+            {run.demo_mode ? ` ${run.demo_mode}` : ''}
+          </p>
         )}
 
         {/* ── Scenario inputs ── */}
@@ -341,12 +379,12 @@ export default function SandboxPanel({ dam, autoDemo, onFlood, onClose, onBusyCh
 
         {/* ── Agent cases ── */}
         <div className="flex gap-1.5 mb-2">
-          <button onClick={doGenerate} disabled={!!busy}
+          <button onClick={() => void doGenerate()} disabled={!!busy}
             className="flex-1 px-2 py-1.5 bg-white/[0.07] text-cmd-ink text-[11px] font-bold rounded-lg hover:bg-white/[0.12] disabled:opacity-50">
             {busy === 'gen' ? '…' : '✨ Generate best/likely/worst'}
           </button>
-          {dam.id === 'd4' && (
-            <button onClick={doDemo} disabled={!!busy} title="Fully offline cached demo"
+          {demoAvailable && (
+            <button onClick={doDemo} disabled={!!busy} title="Precomputed Tehri bundle — no backend, no API keys"
               className="flex-1 px-2 py-1.5 bg-cmd-green/15 text-cmd-green text-[11px] font-bold rounded-lg hover:bg-cmd-green/25 disabled:opacity-50">
               {busy === 'demo' ? '…' : <span className="flex items-center justify-center gap-1"><Download className="w-3 h-3" /> Offline demo</span>}
             </button>
@@ -421,7 +459,13 @@ export default function SandboxPanel({ dam, autoDemo, onFlood, onClose, onBusyCh
           const band = shownSummary.severity_band ?? bandForDepth(maxD);
           const { score, label } = dangerIndex(band, crit);
           const firstArr = shownSummary.earliest_asset_arrival_min;
-          const affected = Number(shownSummary.assets_evaluated ?? assets.length);
+          // "Reached" = points the simulated water actually arrived at. The
+          // summary's assets_evaluated counts every sampled point, wet or dry.
+          const reachedPoints = (assets as any[]).filter((a) => a.arrival_min != null);
+          const reached = reachedPoints.length;
+          const isSettlement = (a: any) => SETTLEMENT_KINDS.has(String(a.kind ?? '').toLowerCase());
+          const reachedSettlements = reachedPoints.filter(isSettlement).length;
+          const sampledSettlements = (assets as any[]).filter(isSettlement).length;
           const gaugeColor = score >= 75 ? '#D96B70' : score >= 55 ? '#D8B24C' : '#55C99A';
           const RR = 30;
           const CC = 2 * Math.PI * RR;
@@ -440,14 +484,14 @@ export default function SandboxPanel({ dam, autoDemo, onFlood, onClose, onBusyCh
                   <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-cmd-muted">Danger index</p>
                   <p className="text-sm font-extrabold text-cmd-ink">{label} <span className="font-normal text-cmd-muted">• {activeCase} case</span></p>
                   <p className="text-[11px] text-cmd-ink/85 leading-snug mt-0.5">
-                    {dangerSentence(score, affected, firstArr, maxD)}
+                    {dangerSentence(reachedSettlements, sampledSettlements, firstArr, maxD)}
                   </p>
                 </div>
               </div>
 
               <div className="p-2.5 grid grid-cols-3 gap-1.5 text-center">
                 {[
-                  { l: 'Places reached', v: String(affected) },
+                  { l: 'Places reached', v: String(reached) },
                   { l: 'First water', v: firstArr != null ? `~${Math.round(firstArr)} min` : '—' },
                   { l: 'Deepest water', v: `${maxD} m` },
                 ].map(({ l, v }) => (
@@ -508,7 +552,7 @@ export default function SandboxPanel({ dam, autoDemo, onFlood, onClose, onBusyCh
                         { l: 'Max flooded area', v: `${shownSummary.flooded_area_km2} km²` },
                         { l: 'Max water depth*', v: `${shownSummary.max_depth_anywhere_m} m` },
                         { l: 'First arrival', v: shownSummary.earliest_asset_arrival_min != null ? `T+${shownSummary.earliest_asset_arrival_min}m` : '—' },
-                        { l: 'Affected assets', v: String(shownSummary.assets_evaluated ?? assets.length) },
+                        { l: 'Assets sampled', v: `${reached} reached of ${shownSummary.assets_evaluated ?? assets.length}` },
                         { l: 'Critical assets', v: String(shownSummary.assets_critical) },
                       ].map(({ l, v }) => (
                         <div key={l} className="bg-cmd-panel2/60 rounded-lg p-2">
@@ -572,7 +616,11 @@ export default function SandboxPanel({ dam, autoDemo, onFlood, onClose, onBusyCh
                   <span className="w-5 h-5 rounded-full bg-cmd-red/90 text-white text-[10px] font-extrabold flex items-center justify-center shrink-0">{i + 1}</span>
                   <span className="flex-1 min-w-0">
                     <span className="block truncate font-bold text-cmd-ink/90">{a.name}</span>
-                    <span className="block text-[10px] text-cmd-muted">{a.kind}{a.source === 'modeled' ? ' • modeled point' : ''}</span>
+                    <span className="block text-[10px] text-cmd-muted">
+                      {a.source === 'modeled'
+                        ? 'modelled sample point — not a real place'
+                        : String(a.kind).replace(/_/g, ' ')}
+                    </span>
                   </span>
                   <span className="text-right shrink-0">
                     <span className="block font-mono font-bold text-cmd-ink/90">T+{Math.round(a.arrival_min)}m</span>

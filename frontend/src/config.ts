@@ -1,12 +1,14 @@
 /**
- * AquaShield 3D — feature flags (TEST MODE).
+ * AquaShield 3D — feature flags.
  *
- * LISFLOOD-FP integration phase: the legacy sandbox/mock flood overlay is
- * DISABLED so it can never masquerade as engine output. The only water
- * rendered comes from parsed LISFLOOD-FP result grids.
+ * Both water paths are on and both label their provenance in the UI:
+ *   sandboxFlood — the screening model (terrain-constrained propagation,
+ *                  explicitly "not hydrodynamics/CFD") or its precomputed
+ *                  offline demo bundle.
+ *   lisflood     — real LISFLOOD-FP jobs: run panel + result overlay, also
+ *                  reachable as a shared result link (`?lisflood=1&job=<id>`).
  *
- * Sandbox code is untouched and recoverable — set `sandboxFlood: true` to
- * restore the old path. Terrain rendering is unaffected either way.
+ * Set a flag to false to remove that path from the console entirely.
  */
 export const FEATURES = {
   /** Legacy sandbox screening overlay (mock/exploratory results, clearly labelled). */

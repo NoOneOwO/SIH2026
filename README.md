@@ -173,9 +173,19 @@ animation frames; `GET .../logs` exposes engine stdout/stderr.
 Dam, failure mode, reservoir level (blank = illustrative default),
 breach width/depth, formation time (**stored; v1 breach is static =
 instantaneous**), duration, Manning's n, domain radius, cell size.
-Run it from Incident Console → *Run LISFLOOD-FP*, or Scenario Manager →
-*LISFLOOD-FP Quick Run*. Shareable result links:
-`/incident?dam=<id>&lisflood=1&job=<job_id>`.
+Open the Incident Console with a shareable result link:
+`/incident?dam=<id>&lisflood=1&job=<job_id>` — it opens the dam's 3D terrain
+with the hydraulic run panel on it.
+
+### Incident Console simulation flow
+
+One path to the terrain, one to run it: pick a dam in the sidebar, then
+*View 3D terrain* or *Run screening simulation* in the dam panel. Both open
+the same terrain (built on demand from real DEM + imagery when a dam has no
+published mesh). The screening panel reports exactly what happened — running,
+engine output on the terrain, or a failure with the backend start command.
+With no backend running, *Load offline demo* replays the precomputed Tehri
+bundle with no keys (`?sandbox=1`/`?demo=1`/`?direct=1` were removed).
 
 ### Terrain & result format
 

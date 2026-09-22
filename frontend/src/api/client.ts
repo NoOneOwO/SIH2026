@@ -7,6 +7,23 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export const TOKEN_KEY = 'damsafe_token';
 
+/** Shown wherever an API call fails because no backend is answering. */
+export const BACKEND_HELP =
+  'No backend is answering at /api/v1. Start it, then retry:\n'
+  + '  cd backend && uvicorn app.main:app --reload --port 8000';
+
+/**
+ * A call that failed because the backend is not there (nothing listening, so
+ * the dev proxy answers 5xx or fetch rejects). Callers can catch this by name
+ * to show setup steps instead of a generic error.
+ */
+export class BackendUnavailableError extends Error {
+  constructor(detail: string) {
+    super(`${BACKEND_HELP}\n\n(${detail})`);
+    this.name = 'BackendUnavailableError';
+  }
+}
+
 export function storedToken(): string | null {
   try {
     return localStorage.getItem(TOKEN_KEY);
@@ -33,11 +50,21 @@ async function apiFetch<T>(
     headers['Authorization'] = 'Bearer dev-token';
   }
 
-  const response = await fetch(url, { ...options, headers });
+  let response: Response;
+  try {
+    response = await fetch(url, { ...options, headers });
+  } catch (e: any) {
+    throw new BackendUnavailableError(`${path}: ${e?.message ?? 'network error'}`);
+  }
 
   if (!response.ok) {
-    const errorBody = await response.text().catch(() => 'No response body');
-    throw new Error(`API Error ${response.status}: ${errorBody}`);
+    const errorBody = (await response.text().catch(() => '')) || 'no response body';
+    // A dead proxied target surfaces as 5xx with an empty/HTML body; a real
+    // backend error is reported as-is below the same status line.
+    if (response.status >= 500) {
+      throw new BackendUnavailableError(`${path}: HTTP ${response.status} ${errorBody.slice(0, 160)}`);
+    }
+    throw new Error(`API Error ${response.status}: ${errorBody.slice(0, 300)}`);
   }
 
   // Handle 204 No Content
@@ -209,7 +236,23 @@ export const sandboxApi = {
     apiFetch<any>('/sandbox/ensemble', {
       method: 'POST', body: JSON.stringify({ dam_id, count, seed, grid_size }),
     }),
-  demoTehri: () => apiFetch<any>('/sandbox/demo/tehri'),
+  demoTehri: async () => {
+    // Precomputed bundle: the dev server serves the generated cache file
+    // directly, so the offline demo works with no backend and no API keys.
+    // Falls back to the API endpoint when the static copy is not present
+    // (e.g. a production build).
+    try {
+      const r = await fetch(`${BASE_URL}/demo/tehri_demo.json`);
+      if (r.ok) {
+        const bundle = await r.json();
+        bundle.mode = bundle.mode ?? 'OFFLINE DEMO (precomputed — not a live calculation)';
+        return bundle;
+      }
+    } catch {
+      /* fall through to the API */
+    }
+    return apiFetch<any>('/sandbox/demo/tehri');
+  },
   /** Standalone 3D terrain published for this dam (globe→sandbox bridge). */
   terrainStatus: (dam_id: string) =>
     apiFetch<any>(`/sandbox/terrain/${dam_id}/status`),

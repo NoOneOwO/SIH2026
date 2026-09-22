@@ -25,12 +25,28 @@ export function bandForDepth(maxDepth: number | null | undefined): string {
   if (d < 2.5) return 'HIGH';
   return 'EXTREME';
 }
-export function dangerSentence(score: number, villages: number, firstArrivalMin: number | null, maxDepth: number | null): string {
-  const where = villages === 0
-    ? 'No villages in the modelled area get wet.'
-    : villages === 1
-      ? 'Water reaches 1 village in the modelled area.'
-      : `Water reaches ${villages} villages in the modelled area.`;
+/**
+ * Plain-language summary of what a run did downstream.
+ *
+ * `reachedSettlements` / `sampledSettlements` are both needed: the asset
+ * inventory falls back to modelled sample points when no OSM settlements are
+ * cached, and in that case there is nothing to say about villages — saying
+ * "no villages get wet" while reporting water at four points reads as a
+ * contradiction.
+ */
+export function dangerSentence(
+  reachedSettlements: number,
+  sampledSettlements: number,
+  firstArrivalMin: number | null,
+  maxDepth: number | null,
+): string {
+  const where = sampledSettlements === 0
+    ? 'No mapped settlements were sampled downstream — exposure below is on modelled sample points, not real places.'
+    : reachedSettlements === 0
+      ? 'No villages in the modelled area get wet.'
+      : reachedSettlements === 1
+        ? 'Water reaches 1 village in the modelled area.'
+        : `Water reaches ${reachedSettlements} villages in the modelled area.`;
   const when = firstArrivalMin == null
     ? ''
     : firstArrivalMin < 1

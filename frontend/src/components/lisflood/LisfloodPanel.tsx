@@ -247,7 +247,7 @@ export default function LisfloodPanel({ dam, onFlood, onClose, initialJobId }: L
           <p className="text-[10px] text-cmd-muted truncate">{dam.name} • decision-support prototype</p>
         </div>
         <span className="px-2 py-0.5 rounded-md bg-cmd-teal/15 text-cmd-teal text-[9px] font-bold tracking-wide">REAL ENGINE</span>
-        <button onClick={() => { onFlood(null); onClose(); }} className="p-1.5 rounded-md text-cmd-muted hover:text-cmd-ink hover:bg-white/[0.06]" title="Close">
+        <button onClick={() => { onFlood(null); onClose(); }} className="p-1.5 rounded-md text-cmd-muted hover:text-cmd-ink hover:bg-white/[0.06]" title="Close the simulation and go back to the globe">
           <X className="w-4 h-4" />
         </button>
       </div>
