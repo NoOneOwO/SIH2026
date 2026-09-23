@@ -20,3 +20,20 @@ services:
         generateValue: true # Render generates a long random secret
       - key: GROQ_API_KEY
         sync: false # set manually in dashboard (assistant LLM; optional)
+
+  # Keep-alive cron — pings GET /health every 10 min so the free-tier
+  # web service above doesn't sleep (Render sleeps after ~15 min idle).
+  # Runs scripts/keep_alive.py (stdlib only, no build needed).
+  - type: cron
+    name: damsafe-keep-alive
+    runtime: python
+    plan: free
+    schedule: "*/10 * * * *"
+    buildCommand: "echo 'no build needed (stdlib only)'"
+    command: "python scripts/keep_alive.py"
+    envVars:
+      - key: BACKEND_URL
+        fromService:
+          type: web
+          name: damsafe-api
+          property: host
