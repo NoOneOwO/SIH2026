@@ -11,7 +11,8 @@
  *     output / failure / backend-not-running).
  *
  * Deep links that still have a job: `?dam=<id>` (share a dam view),
- * `?lisflood=1&job=<id>` (share a completed hydraulic run), `?globeCity=…`
+ * `?dam=<id>&lisflood=1&job=<id>` (share a completed hydraulic run — the dam
+ * id is required, which is how Admin builds the link), `?globeCity=…`
  * (Evacuation Planner waypoint). `?sandbox=1`/`?direct=1`/`?demo=1` were
  * removed — they were alternate ways of starting the same action.
  */

@@ -7,9 +7,7 @@ import base64
 
 import numpy as np
 import pytest
-from fastapi.testclient import TestClient
 
-from app.main import app
 from app.sandbox import hydrograph as hydro
 from app.sandbox import scenarios as agent
 from app.sandbox import terrain_providers as tp
@@ -18,7 +16,22 @@ from app.sandbox.engine import propagate, run_scenario
 from app.sandbox.rivers import condition_domain
 from app.sandbox.schemas import ScenarioParams
 
-client = TestClient(app, raise_server_exceptions=False)
+# Only the API smoke tests need the full service stack (sqlalchemy + DB
+# config). The solver/physics tests below must run on a bare numpy install
+# so the engine stays testable on a machine with no Postgres — an import
+# error here used to abort collection for the entire module.
+try:  # pragma: no cover - environment dependent
+    from fastapi.testclient import TestClient
+
+    from app.main import app as _app
+
+    client = TestClient(_app, raise_server_exceptions=False)
+    _API_SKIP: str | None = None
+except Exception as _exc:  # pragma: no cover - environment dependent
+    client = None
+    _API_SKIP = f"API stack unavailable ({_exc})"
+
+requires_api = pytest.mark.skipif(client is None, reason=_API_SKIP or "API stack unavailable")
 
 
 def _slope_elev(n=48):
@@ -78,12 +91,14 @@ def test_agent_produces_params_not_outcomes():
     assert len(ens) == 5 and len({s.seed for s in ens}) == 5
 
 
+@requires_api
 def test_api_dams():
     r = client.get("/api/v1/sandbox/dams")
     assert r.status_code == 200
     assert r.json()["total"] > 20
 
 
+@requires_api
 def test_api_run_d4():
     body = {"dam_id": "d4", "scenario": _params().model_dump(), "grid_size": 48}
     r = client.post("/api/v1/sandbox/run", json=body)
@@ -95,6 +110,7 @@ def test_api_run_d4():
     assert "NOT hydrodynamics" in j["summary"]["model"]
 
 
+@requires_api
 def test_api_ensemble_small():
     body = {"dam_id": "d4", "count": 3, "seed": 11, "grid_size": 32}
     r = client.post("/api/v1/sandbox/ensemble", json=body)
@@ -141,6 +157,64 @@ def test_engine_frames_are_computed_states():
     assert all(f["volume_stored_m3"] >= 0 for f in r.frames)
     ts = [f["t_min"] for f in r.frames]
     assert ts == sorted(ts) and ts[-1] <= 60.0 + 1e-9
+
+
+def test_closed_rim_never_teleports_water_to_the_opposite_edge():
+    """A breach on the north rim of a flat, closed domain must not wet the
+    south rim. The depth-relaxation stencil used to be toroidal (np.roll), so
+    water crossed the seam of a domain whose borders are closed."""
+    n = 32
+    e = np.full((n, n), 100.0)
+    p = _params(breach_location="0,16", breach_width_m=60.0,
+                breach_depth_m=6.0, initial_release_m3=5000.0,
+                duration_min=10.0)
+    r = propagate(e, 30.0, p)
+    assert r.maxdepth_m[0:2].max() > 1.0, "breach zone itself must be deep"
+    assert r.maxdepth_m[-1].max() < 0.05, "water leaked across the closed rim"
+
+
+def test_short_duration_run_is_never_empty():
+    """duration*timestep used to truncate to zero steps, returning a run with
+    no frames and no routing that still looked like a real answer."""
+    e = _slope_elev()
+    r = run_scenario(e, 30.0, _params(duration_min=1.0, timestep_s=600.0))
+    assert r.steps_used >= 1
+    assert len(r.frames) >= 1
+
+
+def test_reported_peak_excludes_the_whole_breach_inlet():
+    """A breach wider than 5 cells must not have its own inlet columns counted
+    as downstream flooding: the source mask used to be a fixed 5x5 box."""
+    n = 48
+    yy, xx = np.mgrid[0:n, 0:n].astype(float)
+    e = 100.0 - xx * 0.8 - yy * 0.1
+    p = _params(breach_width_m=200.0, breach_depth_m=10.0)
+    r = propagate(e, 30.0, p)  # 200 m / 30 m cells -> a 7-cell-wide inlet
+    sr, sc = np.where(r.source_mask)
+    assert sc.min() <= 21 and sc.max() >= 27, "inlet must be the full 7 columns"
+    peak = float(r.maxdepth_m[~r.source_mask].max())
+    inside = float(r.maxdepth_m[r.source_mask].max())
+    assert peak < inside, "reported peak still includes inlet ponding"
+
+
+def test_severity_classes_are_ordered_and_bounded():
+    """Class 0 = below the 0.3 m first threshold (dry OR shallow), and the
+    class ramp is strictly ordered so a deeper cell can never read lighter."""
+    from app.sandbox.engine import SEVERITY_DEPTHS, severity_grid
+    sev = severity_grid(np.array([[0.0, 0.1, 0.4, 1.2, 3.0, 6.0]]))
+    assert sev.tolist()[0] == [0, 0, 1, 2, 3, 4]
+    assert list(SEVERITY_DEPTHS) == sorted(SEVERITY_DEPTHS)
+
+
+def test_extreme_class_agrees_with_critical_band():
+    """The last severity depth and the consequence band's CRITICAL cutoff are
+    the same number, so a mesh drawn in classes matches the band in words."""
+    from app.sandbox.engine import SEVERITY_DEPTHS, severity_grid
+    from app.sandbox.response import severity_band
+    cutoff = SEVERITY_DEPTHS[-1]
+    assert severity_band(cutoff, 0.0, 0) == "CRITICAL"
+    assert severity_grid(np.array([[cutoff]]))[0][0] == 4
+    assert severity_band(cutoff - 0.01, 0.0, 0) != "CRITICAL"
 
 
 # ── D8 river conditioning ────────────────────────────────────────────
@@ -236,6 +310,7 @@ def test_rainfall_alone_does_not_flood_the_domain():
     assert r.flooded_area_km2 < 2.0, f"rain ponding leaked: {r.flooded_area_km2}"
 
 
+@requires_api
 def test_api_run_carries_river_conditioning():
     body = {"dam_id": "d4", "scenario": _params().model_dump(), "grid_size": 48}
     r = client.post("/api/v1/sandbox/run", json=body)
@@ -281,12 +356,14 @@ def test_provider_chain_fails_closed_without_network_or_keys(monkeypatch):
     assert len(ei.value.trail) >= 4  # local, glo30, glo90, cdse, ot all recorded
 
 
+@requires_api
 def test_api_unknown_dam_404():
     r = client.post("/api/v1/sandbox/run", json={
         "dam_id": "dx-nope", "scenario": _params(dam_id="dx-nope").model_dump(), "grid_size": 32})
     assert r.status_code == 404
 
 
+@requires_api
 def test_api_run_schema_d52():
     """Mandatory Idukki path: real terrain → hydrograph → frames → assets."""
     body = {"dam_id": "d52", "scenario": _params(dam_id="d52").model_dump(), "grid_size": 48}

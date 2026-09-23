@@ -57,6 +57,10 @@ const DEFAULTS = {
 const inputCls =
   'mt-1 w-full text-xs bg-cmd-panel border border-cmd-border rounded-lg px-2 py-1.5 text-cmd-ink placeholder:text-cmd-muted/50 focus:outline-none focus:border-cmd-teal/60';
 
+/** Timeline playback rate: sim-minutes advanced per real second. Fixed; there
+ *  is no speed control in this panel, so it must not pretend to be state. */
+const PLAYBACK_SPEED = 6;
+
 export default function LisfloodPanel({ dam, onFlood, onClose, initialJobId }: LisfloodPanelProps) {
   const { scopeDamId } = useAuth();
   const scopedOut = !!scopeDamId && scopeDamId !== dam.id;
@@ -70,7 +74,6 @@ export default function LisfloodPanel({ dam, onFlood, onClose, initialJobId }: L
   const [showDebug, setShowDebug] = useState(true);
   const [tMin, setTMin] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [speed, setSpeed] = useState(6);
   const [showWater, setShowWater] = useState(true);
   const [showTerrain, setShowTerrain] = useState(true);
   const [opacity, setOpacity] = useState(0.78);
@@ -154,7 +157,7 @@ export default function LisfloodPanel({ dam, onFlood, onClose, initialJobId }: L
     if (!playing || !result) return;
     const iv = setInterval(() => {
       setTMin((t) => {
-        const next = t + speed * 0.25;
+        const next = t + PLAYBACK_SPEED * 0.25;
         if (next >= maxT) {
           setPlaying(false);
           return maxT;
@@ -163,7 +166,7 @@ export default function LisfloodPanel({ dam, onFlood, onClose, initialJobId }: L
       });
     }, 250);
     return () => clearInterval(iv);
-  }, [playing, result, speed, maxT]);
+  }, [playing, result, maxT]);
 
   useEffect(() => {
     if (!result || !meta?.dem) return;

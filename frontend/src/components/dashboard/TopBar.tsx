@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Settings, Menu, ChevronDown, LogOut } from 'lucide-react';
+import { Search, Settings, Menu, LogOut } from 'lucide-react';
 import { NAV_ITEMS } from './nav';
 import { useAuth } from '../../auth/AuthContext';
 import { subscribeBackendState, type BackendState } from '../../api/keepalive';

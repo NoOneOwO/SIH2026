@@ -53,7 +53,7 @@ def summarize(result, assets: list[dict], hydrograph: dict | None = None) -> dic
         "flooded_area_km2": area,
         "flooded_cells": result.flooded_cells,
         "max_depth_anywhere_m": peak_depth,
-        "max_depth_note": "Peak outside the 5x5 breach source zone",
+        "max_depth_note": "Peak outside the breach inflow zone (breach + inflow trail)",
         "assets_evaluated": len(assets),
         "assets_critical": len(crit),
         "earliest_asset_arrival_min": round(min(arrivals), 1) if arrivals else None,

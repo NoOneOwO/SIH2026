@@ -466,6 +466,13 @@ export default function SandboxPanel({ dam, autoRun, onFlood, onExit }: SandboxP
           const isSettlement = (a: any) => SETTLEMENT_KINDS.has(String(a.kind ?? '').toLowerCase());
           const reachedSettlements = reachedPoints.filter(isSettlement).length;
           const sampledSettlements = (assets as any[]).filter(isSettlement).length;
+          // Depth at a place water actually reached — the number that speaks to
+          // people. `maxD` is the deepest single modelled cell, which in a
+          // closed domain is usually narrow-gorge ponding near the breach and
+          // can be orders of magnitude larger; reporting only that beside
+          // "places reached: 4" reads as a contradiction (182 m vs 0.55 m).
+          const deepestReached = reachedPoints.reduce(
+            (m: number, a: any) => Math.max(m, Number(a.max_depth_m ?? 0)), 0);
           const gaugeColor = score >= 75 ? '#D96B70' : score >= 55 ? '#D8B24C' : '#55C99A';
           const RR = 30;
           const CC = 2 * Math.PI * RR;
@@ -484,7 +491,7 @@ export default function SandboxPanel({ dam, autoRun, onFlood, onExit }: SandboxP
                   <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-cmd-muted">Danger index</p>
                   <p className="text-sm font-extrabold text-cmd-ink">{label} <span className="font-normal text-cmd-muted">• {activeCase} case</span></p>
                   <p className="text-[11px] text-cmd-ink/85 leading-snug mt-0.5">
-                    {dangerSentence(reachedSettlements, sampledSettlements, firstArr, maxD)}
+                    {dangerSentence(reachedSettlements, sampledSettlements, firstArr, reached ? deepestReached : null)}
                   </p>
                 </div>
               </div>
@@ -493,7 +500,7 @@ export default function SandboxPanel({ dam, autoRun, onFlood, onExit }: SandboxP
                 {[
                   { l: 'Places reached', v: String(reached) },
                   { l: 'First water', v: firstArr != null ? `~${Math.round(firstArr)} min` : '—' },
-                  { l: 'Deepest water', v: `${maxD} m` },
+                  { l: 'Deepest at a place', v: reached ? `${deepestReached.toFixed(2)} m` : '—' },
                 ].map(({ l, v }) => (
                   <div key={l} className="bg-cmd-panel2/60 rounded-lg p-2">
                     <p className="text-[10px] text-cmd-muted font-semibold">{l}</p>
@@ -598,7 +605,10 @@ export default function SandboxPanel({ dam, autoRun, onFlood, onExit }: SandboxP
                         </div>
                       </div>
                     )}
-                    <p className="text-[10px] text-cmd-muted">*Peak outside the 5×5 breach source zone.</p>
+                    <p className="text-[10px] text-cmd-muted">
+                      *{maxD} m is the deepest single modelled cell outside the breach inflow zone — often backed-up
+                      gorge water, not the depth where people are.
+                    </p>
                   </div>
                 )}
               </div>

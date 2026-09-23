@@ -27,13 +27,27 @@ from __future__ import annotations
 import math
 
 import numpy as np
-from scipy.ndimage import binary_dilation
 
 _FILL_EPS = 1e-3
 
 _DIRS = ((-1, -1), (-1, 0), (-1, 1),
          (0, -1),           (0, 1),
          (1, -1),  (1, 0),  (1, 1))
+
+
+def dilate_ring(mask: np.ndarray) -> np.ndarray:
+    """One-cell 4-connected dilation (pure numpy).
+
+    Matches `scipy.ndimage.binary_dilation(mask, iterations=1)` with its
+    default cross-shaped structuring element, without pulling scipy into
+    the conditioning path — the whole engine then runs on numpy alone.
+    """
+    out = mask.copy()
+    out[1:, :] |= mask[:-1, :]
+    out[:-1, :] |= mask[1:, :]
+    out[:, 1:] |= mask[:, :-1]
+    out[:, :-1] |= mask[:, 1:]
+    return out
 
 
 def fill_sinks(elev: np.ndarray) -> np.ndarray:
@@ -238,7 +252,7 @@ def condition_domain(elev: np.ndarray, trail_len: int = 20,
         # Valley cross-section: the resampled gorge is 1 cell wide but the
         # real valley is wider — burn the 1-cell ring at a fraction so the
         # trench conveys like a valley, not a slot.
-        ring = binary_dilation(channel, iterations=1) & ~channel
+        ring = dilate_ring(channel) & ~channel
         burn[ring] = np.maximum(burn[ring], burn_cap * ring_mult * 0.5)
 
     # Breach snap: the river at the dam, not blind grid-center.

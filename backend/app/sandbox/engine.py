@@ -34,8 +34,12 @@ FLOOD_THRESHOLD_M = 0.05  # below this a cell counts as not inundated
 MAX_STEPS = 3000
 
 SEVERITY_MULT = {"partial": 0.6, "major": 1.0, "full": 1.4}
-# Depth thresholds (m) shared with backend hazard policy: green/yellow/orange/red
-SEVERITY_DEPTHS = (0.3, 1.0, 2.5)
+# Depth thresholds (m) shared with backend hazard policy: green/yellow/orange/
+# red, then class 4 = extreme. Mirrored by response.severity_band's CRITICAL
+# cutoff (5.0 m), which is why it lives here as a single ordered tuple.
+SEVERITY_DEPTHS = (0.3, 1.0, 2.5, 5.0)
+# Sub-grid depth-relaxation strength per step (see the propagation loop).
+RELAX_K = 0.05
 
 
 @dataclass
@@ -65,12 +69,11 @@ def parse_breach_cell(location: str, n: int) -> tuple[int, int]:
 
 
 def severity_grid(maxdepth: np.ndarray) -> np.ndarray:
+    """Depth -> class 0..4 (0 = dry). Class 4 is extreme, reserved for the
+    deepest water only, so the 1..3 ramp keeps its documented meaning."""
     sev = np.zeros_like(maxdepth, dtype=np.int8)
-    sev[maxdepth >= SEVERITY_DEPTHS[0]] = 1
-    sev[maxdepth >= SEVERITY_DEPTHS[1]] = 2
-    sev[maxdepth >= SEVERITY_DEPTHS[2]] = 3
-    # depth >= 2.5 already class 3 ("red"); reserve 4 for extreme >= 5 m
-    sev[maxdepth >= 5.0] = 4
+    for cls, depth in enumerate(SEVERITY_DEPTHS, start=1):
+        sev[maxdepth >= depth] = cls
     sev[maxdepth < FLOOD_THRESHOLD_M] = 0
     return sev
 
@@ -118,7 +121,10 @@ def propagate(elev: np.ndarray, cell_m: float, p: ScenarioParams,
     n = elev.shape[0]
     dx = float(cell_m)
     dt = float(p.timestep_s)
-    steps = min(int(p.duration_min * 60 / dt), MAX_STEPS)
+    # At least one step: a short duration with a coarse timestep used to
+    # truncate to zero steps and return an "empty" simulation (no frames, no
+    # routing) that still looked like a real answer.
+    steps = max(1, min(int(p.duration_min * 60 / dt), MAX_STEPS))
     sim_minutes = steps * dt / 60.0
     area = dx * dx
 
@@ -192,11 +198,15 @@ def propagate(elev: np.ndarray, cell_m: float, p: ScenarioParams,
             "volume_stored_m3": round(float(h.sum() * area), 1),
         })
 
-    # Source-zone mask (5x5 around breach): depths here reflect the inflow
-    # tap, not downstream flooding. Public "peak depth" excludes this zone.
-    # (Built BEFORE the loop so _record_frame can use it.)
+    # Source-zone mask: exactly the cells the release is injected into.
+    # Depths there reflect the inflow tap, not downstream flooding, so public
+    # "peak depth" excludes them. (Built BEFORE the loop for _record_frame.)
+    # This used to be a fixed 5x5 box around the breach, which left the outer
+    # columns of any breach wider than 5 cells inside the downstream
+    # statistics — a 200 m breach at 30 m cells reported the inlet's own
+    # ponding as the deepest downstream water.
     src = np.zeros((n, n), dtype=bool)
-    src[max(0, br - 2):min(n, br + 3), max(0, bc - 2):min(n, bc + 3)] = True
+    src[s_rows, s_cols] = True
 
     for step in range(1, steps + 1):
         t_min = step * dt / 60.0
@@ -236,17 +246,22 @@ def propagate(elev: np.ndarray, cell_m: float, p: ScenarioParams,
                   + np.roll(f_n, -1, axis=0) + np.roll(f_s, 1, axis=0))
         h = h + rain_add + (inflow - (f_e + f_w + f_s + f_n)) / area
         np.clip(h, 0.0, None, out=h)
-        # Sub-grid pressure equilibration: relax depth toward the 3x3 local
-        # mean (mass-conserving). Kills non-physical spikes in sumps while
-        # preserving bulk downhill transport. Documented approximation.
-        local_mean = (h + np.roll(h, 1, axis=0) + np.roll(h, -1, axis=0)
-                      + np.roll(h, 1, axis=1) + np.roll(h, -1, axis=1)
-                      + np.roll(np.roll(h, 1, axis=0), 1, axis=1)
-                      + np.roll(np.roll(h, 1, axis=0), -1, axis=1)
-                      + np.roll(np.roll(h, -1, axis=0), 1, axis=1)
-                      + np.roll(np.roll(h, -1, axis=0), -1, axis=1)) / 9.0
-        h += 0.05 * (local_mean - h)
-        np.clip(h, 0.0, None, out=h)
+        # Sub-grid pressure equilibration: relax depth toward the local mean,
+        # killing non-physical spikes in sumps while preserving bulk downhill
+        # transport. Implemented as pairwise in-domain exchanges, which is
+        # exactly mass-conserving AND never couples across the rim: the
+        # previous np.roll stencil was toroidal, so it teleported water between
+        # the north and south borders of a domain documented as closed.
+        # Positivity is guaranteed because 4*RELAX_K/9 << 1.
+        k = RELAX_K / 9.0
+        dh = np.zeros_like(h)
+        f = k * (h[:, 1:] - h[:, :-1])
+        dh[:, :-1] += f
+        dh[:, 1:] -= f
+        f = k * (h[1:, :] - h[:-1, :])
+        dh[:-1, :] += f
+        dh[1:, :] -= f
+        h += dh
         volume_in += float(rain_add.sum() * area)
         wet = h > WET_THRESHOLD_M
         newly = wet & (arrival < 0)

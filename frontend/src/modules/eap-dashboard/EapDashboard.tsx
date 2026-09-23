@@ -69,7 +69,7 @@ export default function EapDashboard() {
     setChecks([
       {
         label: 'Backend API reachable',
-        status: damCount == null && scenarios == null ? 'attention' : 'ok',
+        status: damCount == null && scen.status === 'rejected' ? 'attention' : 'ok',
         detail: damCount == null ? 'No dam register response — check the backend' : `${damCount} dams returned by /dams`,
       },
       {

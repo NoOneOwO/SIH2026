@@ -240,7 +240,6 @@ export default function GodEye3D({
         await applyBasemap('osm');
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flash]);
 
   // ── Initialize Cesium once ──────────────────────────────────────────

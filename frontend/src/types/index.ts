@@ -151,21 +151,21 @@ export interface AuditEntry {
 
 // ── API Responses ─────────────────────────────────────────────────────────────
 
-export interface PaginatedResponse<T> {
+export interface PaginatedResponse {
   total: number;
   limit: number;
   offset: number;
 }
 
-export interface ScenarioListResponse extends PaginatedResponse<Scenario> {
+export interface ScenarioListResponse extends PaginatedResponse {
   scenarios: Scenario[];
 }
 
-export interface SimRunListResponse extends PaginatedResponse<SimRun> {
+export interface SimRunListResponse extends PaginatedResponse {
   sim_runs: SimRun[];
 }
 
-export interface AuditListResponse extends PaginatedResponse<AuditEntry> {
+export interface AuditListResponse extends PaginatedResponse {
   entries: AuditEntry[];
 }
 

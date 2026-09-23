@@ -1,29 +1,38 @@
 /**
- * Shared danger-index rule (mirrors backend explain_simulation).
- * Band base + up to 10 for critical assets, capped at 100.
+ * Band -> base danger score. Mirrors backend assistant.danger_index. Two ladders exist in the app and either can reach
+ * this helper: the sandbox ladder (MODERATE/HIGH/VERY HIGH/CRITICAL, from
+ * backend response.severity_band) and the explainer ladder (DRY/LOW/MODERATE/
+ * HIGH/EXTREME, from backend assistant._band). Both are listed explicitly so
+ * the same depth scores identically whichever one arrives. Default matches
+ * backend danger_index (45 for an unknown band).
  */
+const BAND_BASE: Record<string, number> = {
+  DRY: 5, LOW: 20, MODERATE: 45, HIGH: 70, 'VERY HIGH': 80, EXTREME: 90, CRITICAL: 90,
+};
+
 export function dangerIndex(band: string | undefined, criticalCount: number): { score: number; label: string } {
-  // Both vocabularies: sandbox bands (CRITICAL/VERY HIGH/HIGH/MODERATE) and
-  // engine bands (EXTREME/HIGH/MODERATE/LOW/DRY).
-  const base =
-    band === 'EXTREME' || band === 'CRITICAL' ? 90 :
-    band === 'VERY HIGH' ? 80 :
-    band === 'HIGH' ? 70 :
-    band === 'MODERATE' ? 45 :
-    band === 'LOW' ? 20 : 5;
+  const base = BAND_BASE[band ?? ''] ?? 45;
   const score = Math.min(100, base + Math.min(10, Math.max(0, criticalCount) * 2));
   const label = score < 30 ? 'Low' : score < 55 ? 'Moderate' : score < 75 ? 'High' : 'Extreme';
   return { score, label };
 }
 
-/** Severity band from a max-depth value (mirrors backend _band). */
+/**
+ * Severity band from a max-depth value alone.
+ *
+ * Mirrors backend `sandbox.response.severity_band` — same depth cut-offs
+ * (1.0 / 2.5 / 5.0 m) and the same MODERATE/HIGH/VERY HIGH/CRITICAL vocabulary
+ * — so the fallback used when a run arrives without a band can never score
+ * differently from the band a live run reports. That helper also escalates on
+ * flooded area and critical-asset count, which a depth-only fallback cannot
+ * see; this is therefore a fallback, not a decision.
+ */
 export function bandForDepth(maxDepth: number | null | undefined): string {
   const d = maxDepth ?? 0;
-  if (d < 0.05) return 'DRY';
-  if (d < 0.3) return 'LOW';
-  if (d < 1.0) return 'MODERATE';
-  if (d < 2.5) return 'HIGH';
-  return 'EXTREME';
+  if (d >= 5.0) return 'CRITICAL';
+  if (d >= 2.5) return 'VERY HIGH';
+  if (d >= 1.0) return 'HIGH';
+  return 'MODERATE';
 }
 /**
  * Plain-language summary of what a run did downstream.

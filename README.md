@@ -12,9 +12,10 @@
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │  FRONTEND (React + TypeScript)                                       │
-│  MapLibre (2D) · CesiumJS (3D) · Time Slider · Report Viewer         │
-│  Modules: Incident Console | EAP Dashboard | Scenario Manager |      │
-│           Alert Console | Evacuation Planner | Report Generator      │
+│  CesiumJS globe · three.js terrain · Recharts charts                 │
+│  Modules: Dashboard | Flood Impact | Incident Console |              │
+│           EAP Dashboard | Alert Console | Evacuation Planner |       │
+│           Report Generator | AI Assistant | Admin                    │
 └───────────────────────────────┬─────────────────────────────────────┘
                                 │ HTTPS / WebSocket
 ┌───────────────────────────────▼─────────────────────────────────────┐
@@ -63,16 +64,18 @@ damsafe-twin/
 │   │   ├── types/index.ts       # TypeScript types
 │   │   ├── i18n/                # EN + HI translations
 │   │   ├── components/          # Layout, shared components
-│   │   ├── modules/             # 6 frontend modules
-│   │   │   ├── incident-console/
+│   │   ├── modules/             # 8 routed frontend modules
+│   │   │   ├── incident-console/ # globe + per-dam 3D terrain + simulation
+│   │   │   ├── impact/           # flood-impact estimation workspace
 │   │   │   ├── eap-dashboard/
-│   │   │   ├── scenario-manager/
 │   │   │   ├── alert-console/
 │   │   │   ├── evacuation-planner/
-│   │   │   └── report-generator/
+│   │   │   ├── report-generator/
+│   │   │   ├── assistant/
+│   │   │   └── admin/
 │   │   └── viewers/
-│   │       ├── maplibre-2d-map/ # 2D flood visualization
-│   │       └── cesium-3d-twin/  # 3D digital twin
+│   │       ├── gods-eye/        # Cesium globe (dam index, dive-to-dam)
+│   │       └── local-3d/        # three.js terrain mesh + flood overlay
 │   └── Dockerfile
 ├── solver-workers/               # Hydrodynamic solver adapters
 │   ├── educational-swe/         # Educational 2D SWE solver

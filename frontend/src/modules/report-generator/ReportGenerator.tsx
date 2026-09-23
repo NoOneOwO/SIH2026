@@ -23,7 +23,6 @@ interface InboxDoc {
 export default function ReportGenerator() {
   const { t } = useTranslation();
   const [selectedRun, setSelectedRun] = useState('demo-run-001');
-  const [format, setFormat] = useState<'pdf' | 'html'>('pdf');
   const [generating, setGenerating] = useState(false);
   const [docTitle, setDocTitle] = useState('Flash flood warning — downstream villages');
   const [docKind, setDocKind] = useState('EMERGENT HELP');

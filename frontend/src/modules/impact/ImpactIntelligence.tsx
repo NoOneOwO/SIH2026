@@ -14,7 +14,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AlertTriangle, ChevronDown, Coins, Database, Globe2, Layers, ListOrdered,
+  AlertTriangle, ChevronDown, Database, Globe2, Layers, ListOrdered,
   MapPinned, PlayCircle, RefreshCw, ShieldCheck, Users,
 } from 'lucide-react';
 import { impactApi, sandboxApi } from '../../api/client';

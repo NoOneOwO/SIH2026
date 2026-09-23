@@ -606,7 +606,6 @@ export default function Local3DView({ dam, slug, hazardColor, onShowMap, onClose
       el.removeEventListener('pointermove', onMove);
       el.removeEventListener('pointerleave', onLeave);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, slug]);
 
   // ── OSM surroundings: fetch once the terrain is ready ────────────
