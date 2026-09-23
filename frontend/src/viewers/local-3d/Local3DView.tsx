@@ -19,6 +19,8 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { DamPoint } from '../../data/india-dams';
 import { fetchOSMContext, type OSMContext } from './osmContext';
+import { HandTracker, emptyHandCommand, HAND_STALE_MS, type HandCommand, type HandTrackerStatus } from './handControl';
+import HandControlOverlay from './HandControlOverlay';
 
 /** Flood overlay: sim-grid arrival/depth painted onto the mesh via vertex
  * colors (multiplied with the satellite texture). The scene is updated
@@ -242,6 +244,46 @@ export default function Local3DView({ dam, slug, hazardColor, onShowMap, onClose
   const showRoadsRef = useRef(showRoads);
   showRoadsRef.current = showRoads;
   const [structStats, setStructStats] = useState({ bTotal: 0, bFlood: 0, trees: 0, roadsKm: 0 });
+
+  // ── Hand gesture control (device camera) ──────────────────────────
+  // The command block is created eagerly — the render loop reads it by ref
+  // every frame; the tracker behind it is lazily built on the first toggle.
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [handOn, setHandOn] = useState(false);
+  const [handStatus, setHandStatus] = useState<HandTrackerStatus>({
+    phase: 'idle', error: '', gesture: 'none', hands: 0, fps: 0,
+  });
+  const handCmdRef = useRef<HandCommand>(emptyHandCommand());
+  const trackerRef = useRef<HandTracker | null>(null);
+  const ensureTracker = useCallback(() => {
+    if (!trackerRef.current) {
+      const t = new HandTracker(handCmdRef.current);
+      t.onStatus = (s) => setHandStatus(s);
+      trackerRef.current = t;
+    }
+    return trackerRef.current;
+  }, []);
+
+  // Start/stop the webcam tracker with the toggle; cleanup releases the
+  // camera whenever hand control turns off or the view unmounts.
+  useEffect(() => {
+    if (!handOn) return;
+    const t = ensureTracker();
+    const v = videoRef.current;
+    if (v) void t.start(v);
+    return () => { t.stop(); };
+  }, [handOn, ensureTracker]);
+
+  useEffect(() => () => { trackerRef.current?.stop(); }, []);
+
+  const toggleHand = useCallback(() => setHandOn((v) => !v), []);
+  const retryHand = useCallback(() => {
+    const t = trackerRef.current;
+    if (!t) return;
+    t.stop();
+    const v = videoRef.current;
+    if (v) void t.start(v);
+  }, []);
 
   // Snapshot the terrain elevation grid once the mesh + meta are both in.
   // Powers O(1) ground-height lookups for draping buildings/trees/roads.
@@ -984,11 +1026,15 @@ export default function Local3DView({ dam, slug, hazardColor, onShowMap, onClose
     // Perf: single canvas only (the globe unmounts with the map view),
     // and pause rendering entirely when the tab is hidden.
     const clockStart = performance.now();
+    let lastFrame = clockStart;
     const loop = () => {
       if (disposed) return;
       raf = requestAnimationFrame(loop);
+      const nowMs = performance.now();
+      const frameDt = Math.min(0.05, (nowMs - lastFrame) / 1000);
+      lastFrame = nowMs;
       if (document.hidden) return;
-      const t = (performance.now() - clockStart) / 1000;
+      const t = (nowMs - clockStart) / 1000;
       const S = sceneRef.current;
       // Water shimmer: gentle opacity breathing + millimetre-scale swell.
       if (S?.water) {
@@ -1003,6 +1049,22 @@ export default function Local3DView({ dam, slug, hazardColor, onShowMap, onClose
         S.pin.scale.setScalar(s);
         const bm = S.beam.material as THREE.MeshBasicMaterial;
         bm.opacity = 0.45 + 0.2 * Math.sin(t * 3.2);
+      }
+      // ── Hand gesture input ────────────────────────────────────────
+      // Per-second rates published by the on-device Hand Landmarker, fed
+      // through OrbitControls' public API exactly like pointer drags, so
+      // damping, distance limits and the polar clamp all still apply.
+      // The `at` staleness gate drops lost frames and a stopped tracker.
+      const HC = handCmdRef.current;
+      if (controls.enabled && performance.now() - HC.at < HAND_STALE_MS) {
+        if (Math.abs(HC.theta) > 1e-4) controls.rotateLeft(HC.theta * frameDt);
+        if (Math.abs(HC.phi) > 1e-4) controls.rotateUp(HC.phi * frameDt);
+        const L = HC.zoom * frameDt;
+        if (L > 1e-5) controls.dollyIn(Math.exp(-L));       // pinch/spread → in
+        else if (L < -1e-5) controls.dollyOut(Math.exp(L)); // …and out
+        if (Math.abs(HC.panX) > 1e-3 || Math.abs(HC.panY) > 1e-3) {
+          controls.pan(HC.panX * frameDt, HC.panY * frameDt);
+        }
       }
       controls.update();
       renderer!.render(scene, camera);
@@ -1027,6 +1089,10 @@ export default function Local3DView({ dam, slug, hazardColor, onShowMap, onClose
       container.innerHTML = '';
     };
   }, [slug, dam.name, hazardColor]);
+
+  // Created during render so the overlay always has a tracker the moment
+  // handOn flips true — the camera itself still starts in the effect above.
+  const activeTracker = handOn ? ensureTracker() : null;
 
   return (
     <div className="relative w-full h-full bg-[#0b1526]">
@@ -1151,9 +1217,30 @@ export default function Local3DView({ dam, slug, hazardColor, onShowMap, onClose
         </div>
       )}
 
-      {/* Controls hint + data source */}
-      <div className="absolute bottom-3 left-3 z-20 px-3 py-1.5 bg-[#0A1218]/85 text-cmd-muted text-[10px] rounded-full border border-cmd-border">
-        Left-drag orbit • Middle-drag / scroll zoom • Right-drag pan
+      {/* Hand gesture HUD: live camera preview + skeleton + gesture state */}
+      {activeTracker && (
+        <HandControlOverlay
+          tracker={activeTracker}
+          status={handStatus}
+          videoRef={videoRef}
+          onRetry={retryHand}
+        />
+      )}
+
+      {/* Controls hint + hand toggle + data source.
+          The toggle lives HERE (not the top cluster) because the simulation
+          panels (z-30, right edge) can cover the top badges on narrow screens. */}
+      <div className="absolute bottom-3 left-3 z-20 flex items-center gap-2">
+        <button
+          onClick={toggleHand}
+          title={handOn ? 'Hand gesture control ON — ✋ orbit, 🤏 pinch zoom, ✊ fist pan, ✌ spread zoom' : 'Control the 3D view with hand gestures via the device camera'}
+          className={`px-3 py-1.5 text-[10px] font-bold rounded-full border transition-colors ${handOn ? 'bg-cmd-teal/90 text-[#071018] border-cmd-teal' : 'bg-[#0A1218]/85 border-cmd-border text-cmd-muted hover:text-cmd-ink'}`}
+        >
+          ✋ Hand{handOn ? ' • on' : ''}
+        </button>
+        <span className="px-3 py-1.5 bg-[#0A1218]/85 text-cmd-muted text-[10px] rounded-full border border-cmd-border">
+          Left-drag orbit • Middle-drag / scroll zoom • Right-drag pan
+        </span>
       </div>
       {meta && (
         <div className="absolute bottom-3 right-3 z-20 px-3 py-1.5 bg-[#0A1218]/85 text-cmd-muted text-[10px] font-mono rounded-full border border-cmd-border">

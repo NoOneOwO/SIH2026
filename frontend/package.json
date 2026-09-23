@@ -10,6 +10,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "^1.0.1",
     "@types/three": "^0.185.4",
     "cesium": "^1.121.0",
     "i18next": "^24.0.0",

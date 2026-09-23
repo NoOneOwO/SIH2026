@@ -1,8 +1,59 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import cesium from 'vite-plugin-cesium';
 import fs from 'node:fs';
 import path from 'path';
+
+/**
+ * MediaPipe wasm runtime for hand tracking, served same-origin from
+ * /vendor/mediapipe/* — single-sourced straight out of node_modules, exactly
+ * like the demo bundle below: the runtime is ~34 MB across the SIMD/module/
+ * nosimd variants, so it must never be committed or bundled. The hand model
+ * itself (/models/hand_landmarker.task) IS committed, since it is a stable
+ * 8 MB artifact with no install step.
+ */
+const MEDIAPIPE_WASM_DIR = path.resolve(
+  __dirname,
+  './node_modules/@mediapipe/tasks-vision/wasm',
+);
+function serveHandTrackingWasm(): Plugin {
+  const send = (file: string, res: import('node:http').ServerResponse) => {
+    fs.readFile(path.join(MEDIAPIPE_WASM_DIR, file), (err, buf) => {
+      if (err) {
+        res.statusCode = 404;
+        res.end('not found');
+        return;
+      }
+      res.setHeader(
+        'Content-Type',
+        file.endsWith('.wasm') ? 'application/wasm' : 'text/javascript; charset=utf-8',
+      );
+      res.end(buf);
+    });
+  };
+  return {
+    name: 'serve-mediapipe-wasm',
+    // Dev server middleware.
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const p = (req.url || '').split('?')[0];
+        if (!p.startsWith('/vendor/mediapipe/')) return next();
+        const file = path.basename(p);
+        if (!/^vision_wasm[a-z_]*_internal\.(js|wasm)$/.test(file)) return next();
+        send(file, res);
+      });
+    },
+    // Production build: emit the runtime into dist (copied, never bundled —
+    // the loader fetches these paths at runtime).
+    closeBundle() {
+      const out = path.resolve(__dirname, 'dist/vendor/mediapipe');
+      fs.mkdirSync(out, { recursive: true });
+      for (const f of fs.readdirSync(MEDIAPIPE_WASM_DIR)) {
+        fs.copyFileSync(path.join(MEDIAPIPE_WASM_DIR, f), path.join(out, f));
+      }
+    },
+  };
+}
 
 /** Precomputed sandbox demo bundle (single source of truth for /demo/). */
 const DEMO_FILE = path.resolve(__dirname, '../backend/app/sandbox/demo_cache/tehri_demo.json');
@@ -41,6 +92,7 @@ export default defineConfig({
         fs.copyFileSync(DEMO_FILE, path.join(out, 'tehri_demo.json'));
       },
     },
+    serveHandTrackingWasm(),
     // CORS middleware so other local origins can fetch /india-dams.geojson
     {
       name: 'cors-headers',
