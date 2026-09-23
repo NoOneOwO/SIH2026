@@ -45,7 +45,22 @@ IMAGE = "damsafe-lisflood:cpu"
 #              into backend/Dockerfile from the same pinned source.
 ENGINE_MODE = os.environ.get("LISFLOOD_MODE", "docker").strip().lower()
 DIRECT_BIN = os.environ.get("LISFLOOD_BIN", "/usr/local/bin/lisflood")
-POOL = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="lisflood")
+
+
+def _pool_workers() -> int:
+    """Engine parallelism: explicit override, else solver concurrency, else 1."""
+    for key in ("LISFLOOD_WORKERS", "SOLVER_MAX_CONCURRENCY"):
+        try:
+            v = int(str(os.environ.get(key, "")).strip())
+            if v >= 1:
+                return min(v, 4)
+        except ValueError:
+            continue
+    return 1
+
+
+POOL = concurrent.futures.ThreadPoolExecutor(
+    max_workers=_pool_workers(), thread_name_prefix="lisflood")
 
 DEPTH_WET_M = 0.05   # inundated-cell threshold
 ARRIVAL_WET_M = 0.10  # first-wetting threshold for arrival
@@ -554,6 +569,10 @@ def execute(job_id: str, req: LisfloodRunRequest) -> None:
     jobdir = _job_dir(job_id)
     t_start = time.time()
     try:
+        # Race-safe start: a job cancelled while queued never runs.
+        st = read_status(job_id)
+        if st is not None and st.get("status") not in ("queued", None):
+            return
         ok, msg = _engine_available()
         if not ok:
             raise RuntimeError(f"LISFLOOD engine unavailable: {msg}")
@@ -601,6 +620,22 @@ def submit(req: LisfloodRunRequest) -> str:
                   dam_id=req.dam_id)
     POOL.submit(execute, job_id, req)
     return job_id
+
+
+def cancel_job(job_id: str) -> dict:
+    """Cancel a queued job. Running jobs own the engine and must finish.
+
+    Returns the resulting status dict. Raises KeyError for unknown jobs and
+    RuntimeError when the job is already past the queued stage.
+    """
+    st = read_status(job_id)
+    if st is None:
+        raise KeyError(f"unknown job '{job_id}'")
+    if st.get("status") != "queued":
+        raise RuntimeError(
+            f"cannot cancel a '{st.get('status')}' job; only 'queued' jobs are cancellable")
+    return _write_status(job_id, status="failed", stage="cancelled",
+                         progress=0.0, error="Cancelled by user while queued")
 
 
 def status_with_progress(job_id: str) -> dict | None:

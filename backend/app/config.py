@@ -62,13 +62,7 @@ class Settings(BaseSettings):
     ROAD_IMPASSABLE_DEPTH_M: float = 0.6
     ROAD_IMPASSABLE_VELOCITY_MS: float = 1.5
 
-    # Mass balance tolerance
-    MASS_BALANCE_TOLERANCE: float = 0.01  # 1%
-
-    # Report generation
-    REPORT_TEMP_DIR: str = "/tmp/damsafe-reports"
-
-    # Mass balance tolerance
+    # Mass balance tolerance (percent; single source of truth)
     MASS_BALANCE_TOLERANCE_PCT: float = 1.0
 
     class Config:

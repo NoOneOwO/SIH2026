@@ -78,15 +78,22 @@ damsafe-twin/
 │   │       └── local-3d/        # three.js terrain mesh + flood overlay
 │   └── Dockerfile
 ├── solver-workers/               # Hydrodynamic solver adapters
+│   ├── lisflood-adapter/         # LISFLOOD-FP 5.9 engine image (operational)
 │   ├── educational-swe/         # Educational 2D SWE solver
 │   └── hecras-adapter/          # HEC-RAS adapter stub
 ├── 3d-assets/                    # 3D dam model pipeline
+│   ├── terrain-pipeline/        # DEM → GLB terrain (133 built dams in output/)
 │   ├── procedural-generator/    # Path B: parametric mesh
 │   └── cad-import/              # Path A: real geometry
+├── scripts/
+│   └── keep_alive.py            # Render keep-alive pinger (cron, stdlib only)
+├── .github/workflows/
+│   └── keep-alive.yml           # External backup pinger (every 10 min)
 ├── infra/
 │   └── docker-compose.yml       # Full stack orchestration
 ├── docs/
 │   ├── provenance-schema.md
+│   ├── validation-sandbox-v2-vs-lisflood.md
 │   └── validation-report-template.md
 └── README.md
 ```

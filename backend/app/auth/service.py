@@ -8,7 +8,7 @@ For MVP dev mode, supports a bypass token for local development.
 from functools import wraps
 from typing import Optional
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
 from pydantic import BaseModel
@@ -136,13 +136,19 @@ def require_role(minimum_role: str):
     """
     min_level = ROLE_HIERARCHY.get(minimum_role, 0)
 
-    async def _check(user: CurrentUser = Depends(get_current_user)):
+    async def _check(
+        request: Request,
+        user: CurrentUser = Depends(get_current_user),
+    ):
         user_level = ROLE_HIERARCHY.get(user.role, 0)
         if user_level < min_level:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Role '{user.role}' insufficient; requires '{minimum_role}' or higher",
             )
+        # Publish the verified identity for downstream consumers (audit log).
+        # Additive only — authorization decisions above are unchanged.
+        request.state.user = user
         return user
 
     return _check

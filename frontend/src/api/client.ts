@@ -115,6 +115,7 @@ export const simRunsApi = {
   getStatus: (id: string) => apiFetch<any>(`/sim-runs/${id}/status`),
   enqueue: (scenarioId: string) =>
     apiFetch<any>(`/sim-runs/${scenarioId}/enqueue`, { method: 'POST' }),
+  cancel: (id: string) => apiFetch<any>(`/sim-runs/${id}`, { method: 'DELETE' }),
 };
 
 // ── Impact Analysis ───────────────────────────────────────────────────────────
@@ -165,6 +166,30 @@ export const alertsApi = {
 
 export const reportsApi = {
   getPdfUrl: (simRunId: string) => `${BASE_URL}/api/v1/reports/${simRunId}/pdf`,
+  /** Download the generated EAP file (PDF, or HTML fallback) as a blob. */
+  downloadReport: async (simRunId: string): Promise<{ blob: Blob; filename: string }> => {
+    const url = `${BASE_URL}/api/v1/reports/${simRunId}/pdf`;
+    const headers: Record<string, string> = {};
+    const token = storedToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    else if (import.meta.env.DEV) headers['Authorization'] = 'Bearer dev-token';
+    let response: Response;
+    try {
+      response = await fetch(url, { headers });
+    } catch (e: any) {
+      throw new BackendUnavailableError(`/reports/${simRunId}/pdf: ${e?.message ?? 'network error'}`);
+    }
+    if (!response.ok) {
+      const body = (await response.text().catch(() => '')).slice(0, 300);
+      throw new Error(`Report failed (HTTP ${response.status}): ${body}`);
+    }
+    const type = response.headers.get('content-type') || '';
+    const ext = type.includes('pdf') ? 'pdf' : 'html';
+    const cd = response.headers.get('content-disposition') || '';
+    const m = /filename=([^;]+)/.exec(cd);
+    const filename = (m?.[1]?.trim() || `damsafe-eap-report-${simRunId}.${ext}`);
+    return { blob: await response.blob(), filename };
+  },
   getHtml: (simRunId: string) => apiFetch<any>(`/reports/${simRunId}/html`),
   broadcast: (data: { title: string; kind: string; body: string; dam_id?: string | null }) =>
     apiFetch<{ status: string; id: string }>(`/reports/broadcast`, {

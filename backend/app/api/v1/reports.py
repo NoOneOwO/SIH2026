@@ -62,14 +62,17 @@ async def generate_pdf_report(
         "breach_params": scenario.breach_params,
     }]
 
-    priorities = await impact_service.compute_evacuation_priorities(db, sim_run_id)
-    road_statuses = await impact_service.compute_road_status(db, sim_run_id, 0)
+    try:
+        priorities = await impact_service.compute_evacuation_priorities(db, sim_run_id)
+        road_statuses = await impact_service.compute_road_status(db, sim_run_id, 0)
+        facilities = await impact_service.get_critical_facilities(db, sim_run)
+    except impact_service.NoResultGridsError as e:
+        raise HTTPException(status_code=422, detail=str(e))
     road_summary = {
         "safe": sum(1 for r in road_statuses if r["status"] == "safe"),
         "restricted": sum(1 for r in road_statuses if r["status"] == "restricted"),
         "impassable": sum(1 for r in road_statuses if r["status"] == "impassable"),
     }
-    facilities = await impact_service.get_critical_facilities(db)
 
     sim_data = {
         "solver": scenario.solver,
@@ -124,7 +127,17 @@ async def generate_html_report(
     from sqlalchemy import select as sa_select
 
     dam_data = {"name": dam.name if dam else "Unknown"} if dam else {}
-    priorities = await impact_service.compute_evacuation_priorities(db, sim_run_id)
+    try:
+        priorities = await impact_service.compute_evacuation_priorities(db, sim_run_id)
+        road_statuses = await impact_service.compute_road_status(db, sim_run_id, 0)
+        facilities = await impact_service.get_critical_facilities(db, sim_run)
+    except impact_service.NoResultGridsError:
+        priorities, road_statuses, facilities = [], [], []
+    road_summary = {
+        "safe": sum(1 for r in road_statuses if r["status"] == "safe"),
+        "restricted": sum(1 for r in road_statuses if r["status"] == "restricted"),
+        "impassable": sum(1 for r in road_statuses if r["status"] == "impassable"),
+    }
 
     html = await service.generate_eap_report(
         dam_data=dam_data,
@@ -138,8 +151,8 @@ async def generate_html_report(
             "breach_params": scenario.breach_params,
         }],
         priorities=priorities,
-        road_summary={"safe": 10, "restricted": 5, "impassable": 3},
-        facilities=[],
+        road_summary=road_summary,
+        facilities=facilities,
         sim_data={"solver": scenario.solver, "solver_version": scenario.solver_version},
     )
 

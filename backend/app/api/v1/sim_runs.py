@@ -32,6 +32,17 @@ async def enqueue_sim_run(
         # Allow running on draft for testing; in production should be submitted+
         pass
 
+    from app.worker import CLASSIC_SOLVERS
+    if scenario.solver not in CLASSIC_SOLVERS:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Solver '{scenario.solver}' cannot run on the classic queue. "
+                f"Supported here: {sorted(CLASSIC_SOLVERS)}. "
+                "LISFLOOD-FP runs via POST /api/v1/lisflood/run."
+            ),
+        )
+
     sim_run = await service.create_sim_run(db, scenario_id)
 
     # Dispatch Celery task
@@ -66,6 +77,32 @@ async def get_sim_run_status(
         "started_at": sim_run.started_at.isoformat() if sim_run.started_at else None,
         "finished_at": sim_run.finished_at.isoformat() if sim_run.finished_at else None,
     }
+
+
+@router.delete("/{sim_run_id}")
+async def cancel_sim_run(
+    sim_run_id: UUID,
+    user: CurrentUser = Depends(require_role("analyst")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Cancel a queued simulation run before the worker picks it up.
+
+    Only ``queued`` runs can be cancelled (the worker refuses to start any
+    run that is no longer queued, so this is race-safe). Running jobs must
+    finish; failed/done jobs are history.
+    """
+    sim_run = await service.get_sim_run(db, sim_run_id)
+    if not sim_run:
+        raise HTTPException(status_code=404, detail="Simulation run not found")
+    if sim_run.job_status != "queued":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot cancel a '{sim_run.job_status}' run; only 'queued' runs are cancellable",
+        )
+    await service.update_sim_run_status(
+        db, sim_run_id, "failed", error_message="Cancelled by user before dispatch",
+    )
+    return {"id": str(sim_run_id), "job_status": "failed", "message": "Run cancelled"}
 
 
 @router.get("")

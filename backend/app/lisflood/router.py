@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from app.auth.service import require_role
 
-from .jobs import _job_dir, read_status, status_with_progress, submit
+from .jobs import _job_dir, cancel_job, read_status, status_with_progress, submit
 from .schemas import LisfloodRunRequest
 
 router = APIRouter()
@@ -77,6 +77,17 @@ def job_result(job_id: str, _user=Depends(require_role("viewer"))):
             raise HTTPException(status_code=422, detail=f"SIMULATION FAILED: {st.get('error')}")
         raise HTTPException(status_code=409, detail=f"job not complete (status={st.get('status')})")
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+@router.delete("/{job_id}")
+def cancel_job_endpoint(job_id: str, _user=Depends(require_role("analyst"))):
+    """Cancel a queued job before the engine picks it up (running jobs finish)."""
+    try:
+        return cancel_job(job_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"unknown job '{job_id}'")
+    except RuntimeError as e:
+        raise HTTPException(status_code=409, detail=str(e))
 
 
 @router.get("/{job_id}/logs")

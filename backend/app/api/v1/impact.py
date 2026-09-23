@@ -15,6 +15,7 @@ from app.auth.service import CurrentUser, require_role
 from app.database import get_db
 from app.simulation.service import get_sim_run
 from app.impact import service
+from app.impact.service import NoResultGridsError
 
 router = APIRouter()
 
@@ -72,7 +73,10 @@ async def get_evacuation_priority(
     if not sim_run:
         raise HTTPException(status_code=404, detail="Simulation run not found")
 
-    priorities = await service.compute_evacuation_priorities(db, sim_run_id)
+    try:
+        priorities = await service.compute_evacuation_priorities(db, sim_run_id)
+    except NoResultGridsError as e:
+        raise HTTPException(status_code=422, detail=str(e))
     return {
         "sim_run_id": str(sim_run_id),
         "total_villages": len(priorities),
@@ -92,7 +96,10 @@ async def get_road_passability(
     if not sim_run:
         raise HTTPException(status_code=404, detail="Simulation run not found")
 
-    statuses = await service.compute_road_status(db, sim_run_id, t)
+    try:
+        statuses = await service.compute_road_status(db, sim_run_id, t)
+    except NoResultGridsError as e:
+        raise HTTPException(status_code=422, detail=str(e))
 
     safe_count = sum(1 for s in statuses if s["status"] == "safe")
     restricted_count = sum(1 for s in statuses if s["status"] == "restricted")
@@ -117,25 +124,15 @@ async def get_hazard_summary(
     user: CurrentUser = Depends(require_role("viewer")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get hazard index summary for the simulation run."""
+    """Get hazard index summary for the simulation run (from its own grids)."""
     sim_run = await get_sim_run(db, sim_run_id)
     if not sim_run:
         raise HTTPException(status_code=404, detail="Simulation run not found")
 
-    from app.impact.service import compute_hazard_index, classify_hazard
-    # In production: reads from precomputed raster
-    mock_depth = 2.0
-    mock_velocity = 3.0
-    hazard = compute_hazard_index(mock_depth, mock_velocity)
-
-    return {
-        "sim_run_id": str(sim_run_id),
-        "hazard_index": round(hazard, 4),
-        "hazard_class": classify_hazard(hazard),
-        "max_depth_m": mock_depth,
-        "max_velocity_ms": mock_velocity,
-        "note": "Mock values for MVP; production uses precomputed COG rasters",
-    }
+    try:
+        return await service.get_hazard_summary(db, sim_run)
+    except NoResultGridsError as e:
+        raise HTTPException(status_code=422, detail=str(e))
 
 
 @router.get("/{sim_run_id}/facilities")
@@ -144,12 +141,15 @@ async def get_facility_exposure(
     user: CurrentUser = Depends(require_role("viewer")),
     db: AsyncSession = Depends(get_db),
 ):
-    """List critical facilities and their exposure status."""
+    """List critical facilities and their exposure status (sampled from run grids)."""
     sim_run = await get_sim_run(db, sim_run_id)
     if not sim_run:
         raise HTTPException(status_code=404, detail="Simulation run not found")
 
-    facilities = await service.get_critical_facilities(db)
+    try:
+        facilities = await service.get_critical_facilities(db, sim_run)
+    except NoResultGridsError as e:
+        raise HTTPException(status_code=422, detail=str(e))
     return {
         "sim_run_id": str(sim_run_id),
         "total_facilities": len(facilities),

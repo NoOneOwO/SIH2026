@@ -2,13 +2,16 @@
  * AquaShield 3D — Report Generator
  * Customizable EAP/incident documents: parameters + officer's free text,
  * broadcast to officials/government, and an inbox for received documents.
+ *
+ * Simulation runs, preview numbers and generated files are all live backend
+ * data — nothing on this page is canned.
  */
 
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
 import { FileText, Download, Eye, Printer, Inbox, Megaphone } from 'lucide-react';
-import { reportsApi } from '../../api/client';
+import { impactApi, reportsApi, simRunsApi } from '../../api/client';
 
 interface InboxDoc {
   id: string;
@@ -20,10 +23,29 @@ interface InboxDoc {
   created_at: number;
 }
 
+interface SimRunRow {
+  id: string;
+  scenario_id: string;
+  job_status: string;
+  finished_at?: string | null;
+  created_at?: string | null;
+}
+
+interface PreviewVillage {
+  village_name: string;
+  arrival_time_min: number | null;
+  depth_m: number;
+}
+
 export default function ReportGenerator() {
   const { t } = useTranslation();
-  const [selectedRun, setSelectedRun] = useState('demo-run-001');
+  const [runs, setRuns] = useState<SimRunRow[]>([]);
+  const [runsError, setRunsError] = useState('');
+  const [selectedRun, setSelectedRun] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [generateMsg, setGenerateMsg] = useState('');
+  const [preview, setPreview] = useState<PreviewVillage[]>([]);
+  const [previewNote, setPreviewNote] = useState('');
   const [docTitle, setDocTitle] = useState('Flash flood warning — downstream villages');
   const [docKind, setDocKind] = useState('EMERGENT HELP');
   const [officerNote, setOfficerNote] = useState(
@@ -34,10 +56,22 @@ export default function ReportGenerator() {
   const [inbox, setInbox] = useState<InboxDoc[]>([]);
   const [openDoc, setOpenDoc] = useState<string | null>(null);
 
-  const sampleReports = [
-    { id: 'demo-run-001', scenario: 'Overtopping — Expected', generatedAt: '2026-08-31T14:30:00Z', pages: 12, size: '2.4 MB' },
-    { id: 'demo-run-002', scenario: 'Piping — Conservative', generatedAt: '2026-08-31T14:35:00Z', pages: 14, size: '2.8 MB' },
-  ];
+  async function loadRuns() {
+    setRunsError('');
+    try {
+      const res = await simRunsApi.list({ job_status: 'done' });
+      const rows: SimRunRow[] = res.sim_runs ?? [];
+      setRuns(rows);
+      if (rows.length && !rows.some((r) => r.id === selectedRun)) {
+        setSelectedRun(rows[0].id);
+      } else if (!rows.length) {
+        setSelectedRun('');
+      }
+    } catch (e: any) {
+      setRunsError(e?.message ?? 'Could not load simulation runs');
+      setRuns([]);
+    }
+  }
 
   async function loadInbox() {
     try {
@@ -49,18 +83,72 @@ export default function ReportGenerator() {
   }
 
   useEffect(() => {
+    loadRuns();
     loadInbox();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function handleGenerate() {
-    setGenerating(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setGenerating(false);
-    alert(`Report generated! In production, this would download a PDF.`);
+  // Live preview numbers: top-3 priority villages for the selected run.
+  useEffect(() => {
+    if (!selectedRun) {
+      setPreview([]);
+      setPreviewNote('');
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await impactApi.getPriorities(selectedRun);
+        if (cancelled) return;
+        const top: PreviewVillage[] = (res.priorities ?? []).slice(0, 3);
+        setPreview(top);
+        setPreviewNote(top.length ? '' : 'No villages in this run.');
+      } catch (e: any) {
+        if (cancelled) return;
+        setPreview([]);
+        setPreviewNote(
+          String(e?.message ?? '').includes('422')
+            ? 'This run has no result grids — re-run the simulation for live numbers.'
+            : `Preview unavailable: ${e?.message ?? 'backend error'}`,
+        );
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedRun]);
+
+  function saveBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
   }
 
-  function handleDownload() {
-    window.open(reportsApi.getPdfUrl(selectedRun), '_blank');
+  async function handleGenerate() {
+    setGenerateMsg('');
+    if (!selectedRun) {
+      setGenerateMsg('No completed simulation run yet — enqueue and finish one first.');
+      return;
+    }
+    setGenerating(true);
+    try {
+      const { blob, filename } = await reportsApi.downloadReport(selectedRun);
+      saveBlob(blob, filename);
+      setGenerateMsg(
+        filename.endsWith('.html')
+          ? `PDF engine unavailable — downloaded HTML report (${filename}) instead.`
+          : `Report downloaded (${filename}).`,
+      );
+    } catch (e: any) {
+      setGenerateMsg(`Generation failed: ${e?.message ?? 'backend error'}`);
+    } finally {
+      setGenerating(false);
+    }
   }
 
   async function handleBroadcast() {
@@ -121,12 +209,16 @@ export default function ReportGenerator() {
             </label>
             <label className="block text-xs font-medium text-cmd-muted">Simulation Run
               <select value={selectedRun} onChange={(e) => setSelectedRun(e.target.value)} className={`${inputCls} mt-1`}>
-                {sampleReports.map((r) => (
-                  <option key={r.id} value={r.id}>{r.scenario}</option>
+                {runs.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.id.slice(0, 8)}… · done{r.finished_at ? ` · ${new Date(r.finished_at).toLocaleString()}` : ''}
+                  </option>
                 ))}
+                {!runs.length && <option value="">No completed runs</option>}
               </select>
             </label>
           </div>
+          {runsError && <p className="mb-3 text-xs text-cmd-amber">{runsError}</p>}
           <label className="block text-xs font-medium text-cmd-muted">Officer's note <span className="font-normal">(free text — included verbatim in the document)</span>
             <textarea value={officerNote} onChange={(e) => setOfficerNote(e.target.value)} rows={4}
               className={`${inputCls} mt-1 leading-relaxed`}
@@ -134,12 +226,12 @@ export default function ReportGenerator() {
           </label>
 
           <div className="mt-4 flex flex-wrap gap-3">
-            <button onClick={handleGenerate} disabled={generating}
+            <button onClick={handleGenerate} disabled={generating || !selectedRun}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-cmd-teal/90 hover:bg-cmd-teal text-[#071018] text-sm font-bold transition-colors disabled:opacity-50">
               {generating ? 'Generating…' : <><FileText className="w-4 h-4" /> {t('report.generatePdf')}</>}
             </button>
-            <button onClick={handleDownload} className={ghostBtn}>
-              <Download className="w-4 h-4" /> {t('report.downloadPdf')}
+            <button onClick={() => window.print()} className={ghostBtn}>
+              <Printer className="w-4 h-4" /> Print page
             </button>
             <button onClick={handleBroadcast} disabled={broadcasting}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-cmd-amber/90 hover:bg-cmd-amber text-[#071018] text-sm font-bold transition-colors disabled:opacity-50"
@@ -147,6 +239,7 @@ export default function ReportGenerator() {
               <Megaphone className="w-4 h-4" strokeWidth={2} /> {broadcasting ? 'Broadcasting…' : 'Broadcast to officials'}
             </button>
           </div>
+          {generateMsg && <p className="mt-2.5 text-xs text-cmd-muted">{generateMsg}</p>}
           {broadcastMsg && <p className="mt-2.5 text-xs text-cmd-muted">{broadcastMsg}</p>}
         </div>
 
@@ -165,16 +258,19 @@ export default function ReportGenerator() {
                 {officerNote || <span className="text-cmd-muted italic">Officer note appears here…</span>}
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-                {[
-                  ['Bhalbhal', 'T+20 min • 3.2 m'],
-                  ['Tankara', 'T+35 min • 1.8 m'],
-                  ['Morbi City', 'T+45 min • 0.8 m'],
-                ].map(([v, s]) => (
-                  <div key={v} className="rounded-lg border border-cmd-border bg-cmd-panel p-2">
-                    <p className="text-xs font-bold text-cmd-ink">{v}</p>
-                    <p className="text-[11px] text-cmd-muted font-mono tabular-nums">{s}</p>
+                {preview.map((v) => (
+                  <div key={v.village_name} className="rounded-lg border border-cmd-border bg-cmd-panel p-2">
+                    <p className="text-xs font-bold text-cmd-ink">{v.village_name}</p>
+                    <p className="text-[11px] text-cmd-muted font-mono tabular-nums">
+                      {v.arrival_time_min != null ? `T+${Math.round(v.arrival_time_min)} min` : 'dry'} • {v.depth_m.toFixed(1)} m
+                    </p>
                   </div>
                 ))}
+                {!preview.length && (
+                  <p className="col-span-3 text-[11px] text-cmd-muted italic">
+                    {previewNote || 'Pick a completed run for live priority numbers.'}
+                  </p>
+                )}
               </div>
               <div className="mt-4 pt-3 border-t border-cmd-border text-xs text-cmd-muted italic">
                 Planning prototype — operational use needs authorised data and formal EAP approval.
@@ -221,35 +317,50 @@ export default function ReportGenerator() {
           )}
         </div>
 
-        {/* Previous Reports */}
+        {/* Completed runs with per-run downloads */}
         <div className="cmd-card p-5">
-          <h3 className="text-[15px] font-semibold text-cmd-ink mb-4">Generated Reports</h3>
-          <div className="space-y-2.5">
-            {sampleReports.map((r) => (
-              <div key={r.id} className="flex items-center justify-between p-3 rounded-xl border border-cmd-border hover:border-cmd-teal/40 transition-colors">
-                <div className="flex items-center gap-3">
-                  <FileText className="w-5 h-5 text-cmd-teal" strokeWidth={1.75} />
-                  <div>
-                    <div className="text-sm font-medium text-cmd-ink">{r.scenario}</div>
-                    <div className="text-xs text-cmd-muted tabular-nums">
-                      {r.pages} pages · {r.size} · {new Date(r.generatedAt).toLocaleDateString()}
+          <h3 className="text-[15px] font-semibold text-cmd-ink mb-4">Completed Simulation Runs</h3>
+          {!runs.length ? (
+            <p className="text-xs text-cmd-muted">
+              {runsError || 'No completed runs yet. Enqueue a scenario run and it appears here with its report.'}
+            </p>
+          ) : (
+            <div className="space-y-2.5">
+              {runs.map((r) => (
+                <div key={r.id} className="flex items-center justify-between p-3 rounded-xl border border-cmd-border hover:border-cmd-teal/40 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <FileText className="w-5 h-5 text-cmd-teal" strokeWidth={1.75} />
+                    <div>
+                      <div className="text-sm font-medium text-cmd-ink font-mono">{r.id.slice(0, 8)}…</div>
+                      <div className="text-xs text-cmd-muted tabular-nums">
+                        scenario {String(r.scenario_id).slice(0, 8)}…
+                        {r.finished_at ? ` · ${new Date(r.finished_at).toLocaleString()}` : ''}
+                      </div>
                     </div>
                   </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setSelectedRun(r.id)} className={`${ghostBtn} !py-1.5 !text-xs`}>
+                      <Eye className="w-3 h-3" /> Preview
+                    </button>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const { blob, filename } = await reportsApi.downloadReport(r.id);
+                          saveBlob(blob, filename);
+                        } catch (e: any) {
+                          setGenerateMsg(`Download failed: ${e?.message ?? 'backend error'}`);
+                        }
+                      }}
+                      className={`${ghostBtn} !py-1.5 !text-xs`}>
+                      <Download className="w-3 h-3" /> Download
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <button className={`${ghostBtn} !py-1.5 !text-xs`}>
-                    <Download className="w-3 h-3" /> Download
-                  </button>
-                  <button className={`${ghostBtn} !py-1.5 !text-xs`}>
-                    <Printer className="w-3 h-3" /> Print
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </motion.div>
   );
 }
-

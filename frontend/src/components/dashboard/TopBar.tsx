@@ -1,14 +1,15 @@
 /**
  * AquaShield 3D — Command-centre TopBar.
- * Search (Ctrl+K focuses, filters existing routes), System Online,
- * current operator, settings entry.
+ * Search (Ctrl+K focuses): dams from the local registry (deep-links to the
+ * incident console) plus app routes. System Online, current operator, logout.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Settings, Menu, LogOut } from 'lucide-react';
+import { Search, Settings, Menu, LogOut, Waves } from 'lucide-react';
 import { NAV_ITEMS } from './nav';
+import { INDIA_DAMS } from '../../data/india-dams';
 import { useAuth } from '../../auth/AuthContext';
 import { subscribeBackendState, type BackendState } from '../../api/keepalive';
 
@@ -59,6 +60,16 @@ export default function TopBar({ onOpenMobileNav }: TopBarProps) {
     ).slice(0, 6);
   }, [query, t]);
 
+  const damMatches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (q.length < 2) return [];
+    return INDIA_DAMS.filter((d) =>
+      d.name.toLowerCase().includes(q) ||
+      d.state.toLowerCase().includes(q) ||
+      d.river.toLowerCase().includes(q),
+    ).slice(0, 5);
+  }, [query]);
+
   const go = (path: string) => {
     navigate(path);
     setQuery('');
@@ -89,7 +100,10 @@ export default function TopBar({ onOpenMobileNav }: TopBarProps) {
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setFocused(true)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && matches.length > 0) go(matches[0].path);
+              if (e.key === 'Enter') {
+                if (damMatches.length > 0) go(`/incident?dam=${damMatches[0].id}`);
+                else if (matches.length > 0) go(matches[0].path);
+              }
               if (e.key === 'Escape') {
                 setQuery('');
                 inputRef.current?.blur();
@@ -97,7 +111,7 @@ export default function TopBar({ onOpenMobileNav }: TopBarProps) {
             }}
             type="text"
             role="combobox"
-            aria-expanded={focused && matches.length > 0}
+            aria-expanded={focused && (matches.length > 0 || damMatches.length > 0)}
             aria-label="Search dams, locations, or actions"
             placeholder="Search dams, locations, or actions..."
             className="h-10 w-full rounded-lg border border-cmd-border bg-cmd-panel pl-9 pr-20 text-[13px] text-cmd-ink placeholder:text-cmd-muted/70 focus:border-cmd-teal/60 focus:outline-none"
@@ -106,8 +120,20 @@ export default function TopBar({ onOpenMobileNav }: TopBarProps) {
             Ctrl + K
           </kbd>
 
-          {focused && matches.length > 0 && (
+          {focused && (matches.length > 0 || damMatches.length > 0) && (
             <div className="absolute inset-x-0 top-11 overflow-hidden rounded-lg border border-cmd-border bg-cmd-panel2 shadow-xl">
+              {damMatches.map((d) => (
+                <button
+                  key={d.id}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => go(`/incident?dam=${d.id}`)}
+                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[13px] text-cmd-ink hover:bg-white/[0.05]"
+                >
+                  <Waves className="h-4 w-4 text-cmd-teal" strokeWidth={1.75} />
+                  <span className="flex-1 truncate">{d.name}</span>
+                  <span className="text-[11px] text-cmd-muted">{d.state}</span>
+                </button>
+              ))}
               {matches.map((item) => (
                 <button
                   key={item.path}

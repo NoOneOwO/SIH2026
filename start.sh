@@ -1,26 +1,26 @@
 #!/bin/bash
-echo "============================================"
-echo "  DamSafe Twin - Starting all services"
-echo "============================================"
-echo ""
-
+# DamSafe Twin - local starter (Linux/macOS)
+# Backend :8000 + Frontend :3000. Uses backend/.venv if present, else system python3.
+set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-echo "[1/2] Starting GeoLibre (3D Earth)..."
-cd "$SCRIPT_DIR/../GeoLibre-main/GeoLibre-main/apps/geolibre-desktop"
-npm run dev &
-GEOLIBRE_PID=$!
+if [ -x "$SCRIPT_DIR/backend/.venv/bin/python" ]; then
+  PY="$SCRIPT_DIR/backend/.venv/bin/python"
+else
+  PY="python3"
+fi
 
-echo "[2/2] Starting DamSafe Twin Frontend..."
-cd "$SCRIPT_DIR"
-npm run dev &
-DAMSAFE_PID=$!
+echo "[1/2] Starting backend (port 8000)..."
+cd "$SCRIPT_DIR/backend" && "$PY" -m uvicorn app.main:app --host 127.0.0.1 --port 8000 &
+API_PID=$!
+
+echo "[2/2] Starting frontend (port 3000)..."
+cd "$SCRIPT_DIR/frontend" && npm run dev -- --host localhost --port 3000 &
+WEB_PID=$!
 
 echo ""
-echo "============================================"
-echo "  All services started!"
-echo "  DamSafe Twin:  http://localhost:3000"
-echo "  GeoLibre:      http://localhost:5175"
-echo "============================================"
+echo "Backend:  http://127.0.0.1:8000/health  docs: http://127.0.0.1:8000/api/docs"
+echo "Frontend: http://localhost:3000"
+echo "Full stack (Docker): cd infra && docker compose up --build"
 
-wait $GEOLIBRE_PID $DAMSAFE_PID
+wait $API_PID $WEB_PID

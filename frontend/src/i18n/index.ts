@@ -209,6 +209,13 @@ const resources = {
       'hazard.orange': 'उच्च जोखिम',
       'hazard.red': 'अत्यधिक जोखिम',
 
+      // 3D View
+      'view3d.title': '3डी डिजिटल ट्विन',
+      'view3d.damOverview': 'बांध अवलोकन',
+      'view3d.firstHitVillage': 'पहला प्रभावित गाँव',
+      'view3d.criticalBridge': 'महत्वपूर्ण पुल',
+      'view3d.districtCommand': 'जिला कमान दृश्य',
+
       // Audit
       'audit.title': 'ऑडिट ट्रेल',
       'audit.entity': 'संस्था',

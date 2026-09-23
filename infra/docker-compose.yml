@@ -113,6 +113,7 @@ services:
     volumes:
       - ../backend:/app
       - solver-data:/data/solver
+      - ../3d-assets/procedural-generator:/opt/damgen:ro
 
   celery-beat:
     build:

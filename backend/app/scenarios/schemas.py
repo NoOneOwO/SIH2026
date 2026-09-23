@@ -24,7 +24,11 @@ class ScenarioCreate(BaseModel):
     )
     dem_version_id: Optional[UUID] = None
     roughness_map_id: Optional[UUID] = None
-    solver: str = Field(default="hecras", description="hecras | telemac | anuga | educational_swe")
+    solver: str = Field(
+        default="educational_swe",
+        description=("educational_swe runs on the classic queue; "
+                     "hecras | anuga need external engines; lisflood runs via /api/v1/lisflood"),
+    )
     solver_version: str = Field(default="1.0.0")
     description: Optional[str] = None
 

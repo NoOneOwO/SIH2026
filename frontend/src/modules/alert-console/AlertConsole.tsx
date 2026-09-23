@@ -13,7 +13,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
 import { AlertTriangle, CheckCircle, Globe, RefreshCw, Send, Shield, FileText, Waves } from 'lucide-react';
-import { alertsApi } from '../../api/client';
+import { alertsApi, simRunsApi } from '../../api/client';
 import { RISK_HEX, formatCount, formatInr, formatRange } from '../../components/impact/format';
 import { loadLastAssessment } from '../../utils/lastAssessment';
 
@@ -45,6 +45,7 @@ export default function AlertConsole() {
   const [language, setLanguage] = useState<'en' | 'hi'>('en');
   const [severity, setSeverity] = useState<'watch' | 'warning' | 'emergency'>('warning');
   const [simRunId, setSimRunId] = useState('');
+  const [doneRuns, setDoneRuns] = useState<Array<{ id: string; scenario_id: string; finished_at?: string | null }>>([]);
   const [alerts, setAlerts] = useState<AlertRow[] | null>(null);
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
@@ -73,6 +74,17 @@ export default function AlertConsole() {
 
   useEffect(() => {
     void load();
+    // Completed runs feed the draft picker — no UUID paste needed.
+    (async () => {
+      try {
+        const res = await simRunsApi.list({ job_status: 'done' });
+        const rows = res.sim_runs ?? [];
+        setDoneRuns(rows);
+        if (rows.length) setSimRunId((cur) => cur || rows[0].id);
+      } catch {
+        setDoneRuns([]);
+      }
+    })();
   }, [load]);
 
   const createDraft = async () => {
@@ -243,13 +255,28 @@ export default function AlertConsole() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-cmd-muted">Simulation run id</label>
-              <input
-                value={simRunId}
-                onChange={(e) => setSimRunId(e.target.value)}
-                placeholder="UUID from the run you are alerting on"
-                className="w-full rounded-lg border border-cmd-border bg-cmd-panel2 px-3 py-2 text-sm text-cmd-ink focus:border-cmd-teal/60 focus:outline-none"
-              />
+              <label className="mb-1 block text-xs font-medium text-cmd-muted">Simulation run</label>
+              {doneRuns.length ? (
+                <select
+                  value={simRunId}
+                  onChange={(e) => setSimRunId(e.target.value)}
+                  className="w-full rounded-lg border border-cmd-border bg-cmd-panel2 px-3 py-2 text-sm text-cmd-ink focus:border-cmd-teal/60 focus:outline-none"
+                >
+                  {doneRuns.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.id.slice(0, 8)}… · scenario {String(r.scenario_id).slice(0, 8)}…
+                      {r.finished_at ? ` · ${new Date(r.finished_at).toLocaleString()}` : ''}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  value={simRunId}
+                  onChange={(e) => setSimRunId(e.target.value)}
+                  placeholder="No completed runs yet — paste a run UUID"
+                  className="w-full rounded-lg border border-cmd-border bg-cmd-panel2 px-3 py-2 text-sm text-cmd-ink focus:border-cmd-teal/60 focus:outline-none"
+                />
+              )}
             </div>
           </div>
           <button
