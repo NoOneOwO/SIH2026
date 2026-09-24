@@ -2,7 +2,8 @@
 # Pings GET /health every 10 minutes (Render sleeps after ~15 min idle).
 #
 # Setup: repo Settings → Secrets and variables → Actions → New secret:
-#   RENDER_BACKEND_URL = https://damsafe-api.onrender.com  (your service URL, no trailing /health)
+#   RENDER_BACKEND_URL = https://<your-service>.onrender.com
+#   (copy the exact URL from the Render dashboard; no trailing slash, no /health)
 #
 # The Render-native cron in render.yaml (damsafe-keep-alive) is the primary
 # keep-alive; this workflow is a free external backup.
@@ -17,16 +18,36 @@ on:
 jobs:
   ping:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 8
     steps:
-      - name: Ping /health
+      - name: Ping /health (wake-up tolerant)
         run: |
-          URL="${{ secrets.RENDER_BACKEND_URL }}/health"
-          echo "Pinging $URL"
-          CODE=$(curl -s -o /tmp/health.json -w "%{http_code}" --max-time 25 "$URL" || echo "000")
-          cat /tmp/health.json || true
-          echo "HTTP $CODE"
-          if [ "$CODE" != "200" ]; then
-            echo "Keep-alive ping failed with HTTP $CODE" >&2
+          BASE="${{ secrets.RENDER_BACKEND_URL }}"
+          if [ -z "$BASE" ]; then
+            echo "::error::RENDER_BACKEND_URL secret is not set. Add it under repo Settings → Secrets → Actions."
             exit 1
           fi
+          # Normalize: strip trailing slashes, then append /health exactly once.
+          URL="${BASE%/}/health"
+          echo "Pinging $URL"
+
+          # A sleeping Render service needs 30-60s+ to cold-start (Docker pull
+          # + boot), so one shot is not enough: try 4 times, 90s apart.
+          for attempt in 1 2 3 4; do
+            CODE=$(curl -s -o /tmp/health.json -w "%{http_code}" --max-time 60 "$URL" || echo "000")
+            BODY=$(cat /tmp/health.json 2>/dev/null || true)
+            echo "Attempt $attempt: HTTP $CODE ${BODY:0:200}"
+            if [ "$CODE" = "200" ]; then
+              echo "Backend is awake."
+              exit 0
+            fi
+            if [ "$CODE" = "000" ]; then
+              echo "No HTTP response (DNS/TLS/timeout) — check the URL and that the service exists."
+            fi
+            if [ "$attempt" -lt 4 ]; then
+              echo "Waiting 90s for cold start before retry..."
+              sleep 90
+            fi
+          done
+          echo "::error::Keep-alive ping failed after 4 attempts (last HTTP $CODE). If 000 every time, the URL/secret is wrong; if 5xx, the backend is crashing on boot — check Render logs."
+          exit 1
