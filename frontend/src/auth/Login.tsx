@@ -48,11 +48,16 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-cmd-bg text-cmd-ink flex items-center justify-center p-6 overflow-y-auto relative">
-      {/* One-click testing login (seed admin) */}
-      <button onClick={devLogin} disabled={busy} title="Sign in instantly as the seed admin (for testing)"
-        className="absolute top-4 right-4 flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-cmd-amber/40 bg-cmd-amber/[0.08] text-cmd-amber text-xs font-bold hover:bg-cmd-amber/[0.15] transition-colors disabled:opacity-50">
-        <KeyRound className="w-3.5 h-3.5" strokeWidth={2} /> Dev admin login
-      </button>
+      {/* One-click testing login (seed admin) + cold-start notice */}
+      <div className="absolute top-4 right-4 flex flex-col items-end gap-1.5">
+        <button onClick={devLogin} disabled={busy} title="Sign in instantly as the seed admin (for testing)"
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-cmd-amber/40 bg-cmd-amber/[0.08] text-cmd-amber text-xs font-bold hover:bg-cmd-amber/[0.15] transition-colors disabled:opacity-50">
+          <KeyRound className="w-3.5 h-3.5" strokeWidth={2} /> Dev admin login
+        </button>
+        <p className="max-w-[260px] rounded-lg border border-cmd-border/70 bg-cmd-panel/90 px-3 py-2 text-[11px] leading-relaxed text-cmd-muted">
+          First login can take 40–50s — the free-tier Render backend sleeps on inactivity and needs a moment to wake up. Don't be upset 🥺 please wait…
+        </p>
+      </div>
       <motion.div
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
