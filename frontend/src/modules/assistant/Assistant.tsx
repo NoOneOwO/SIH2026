@@ -41,7 +41,7 @@ const QUICK = [
 export interface AssistContext {
   dam_id: string;
   dam_name: string;
-  kind: 'sandbox' | 'lisflood';
+  kind: 'sandbox' | 'lisflood' | 'impact';
   label: string;
   summary: any;
   impacts: any[];
@@ -61,6 +61,34 @@ export function readAssistContext(): AssistContext | null {
 
 /** One-paragraph measured context attached to every chat message. */
 export function contextText(ctx: AssistContext): string {
+  // Impact-assessment context: totals + the priority-ordered settlement rows.
+  if (ctx.kind === 'impact') {
+    const t = ctx.summary ?? {};
+    const top = (ctx.impacts ?? []).slice(0, 8);
+    const lines = [
+      `Active flood-impact assessment: ${ctx.dam_name} (${ctx.dam_id}), case '${ctx.label}'.`,
+      `Overall risk ${t.overall_risk ?? '—'}; flooded area ${t.flooded_area_km2 ?? '—'} km²; `,
+      `peak depth ${t.peak_depth_m ?? '—'} m; ${t.settlements_inundated ?? 0} settlements inundated, `,
+      `${t.settlements_at_risk ?? 0} more at risk; population exposed ${t.population_exposed?.low ?? '—'}–${t.population_exposed?.high ?? '—'}; `,
+      `damage estimate ₹${t.damage?.low_inr ?? '—'}–₹${t.damage?.high_inr ?? '—'}; ${t.critical_assets_exposed ?? 0} critical assets exposed.`,
+    ];
+    if (top.length) {
+      lines.push(
+        ' Highest-priority locations: ' +
+          top
+            .map(
+              (s: any) =>
+                `${s.name} (priority ${s.priority?.band ?? s.risk ?? '—'}, ${s.population_exposed?.mid ?? '—'} exposed` +
+                (s.arrival_min != null ? `, arrival T+${Math.round(s.arrival_min)} min` : '') +
+                (s.depth_m != null ? `, depth ${s.depth_m} m` : '') +
+                ')',
+            )
+            .join('; ') +
+          '.',
+      );
+    }
+    return lines.join('');
+  }
   const s = ctx.summary ?? {};
   const wet = (ctx.impacts ?? []).filter((i: any) => (i.arrival_min != null && i.max_depth_m > 0.05) || i.inundated);
   const first = wet
@@ -96,6 +124,21 @@ export default function Assistant() {
     setSimCtx(ctx);
     if (ctx.dam_id) setDamId(ctx.dam_id);
     window.history.replaceState(null, '', '/assistant');
+    if (ctx.kind === 'impact') {
+      // Impact assessment handoff: the full estimate context rides along with
+      // every chat message (contextText); no /explain round trip needed.
+      const t = ctx.summary ?? {};
+      setMsgs((m) => [...m, {
+        role: 'assistant' as const,
+        text:
+          `I have the full flood-impact assessment for ${ctx.dam_name} attached ` +
+          `(case '${ctx.label}': risk ${t.overall_risk ?? '—'}, ${t.settlements_inundated ?? 0} settlements inundated, ` +
+          `${t.population_exposed?.low ?? '—'}–${t.population_exposed?.high ?? '—'} people exposed). ` +
+          'Ask me where to evacuate first, which towns are worst, or what the numbers mean.',
+        source: 'impact-assessment',
+      }]);
+      return;
+    }
     (async () => {
       setBusy(true);
       try {

@@ -31,6 +31,10 @@ class ImpactEstimateRequest(BaseModel):
         default=8, ge=0, le=24,
         description="Scenario runs used for the per-cell exposure frequency (0 = skip)")
     seed: int = 7
+    compare_all: bool = Field(
+        default=False,
+        description="Also run best+likely+worst and return a per-case totals comparison "
+                    "(uncertainty spread; the full estimate stays the selected case)")
 
 
 @router.post("/estimate", dependencies=[Depends(require_role("viewer"))])
@@ -49,7 +53,7 @@ async def estimate_impact_endpoint(body: ImpactEstimateRequest):
     if get_dam(body.dam_id) is None:
         raise HTTPException(status_code=404, detail=f"Unknown dam id '{body.dam_id}'")
     try:
-        return run_case(
+        result = run_case(
             body.dam_id,
             case=body.case,
             grid_size=body.grid_size,
@@ -60,6 +64,45 @@ async def estimate_impact_endpoint(body: ImpactEstimateRequest):
         raise HTTPException(status_code=503, detail=str(e))
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+    if not body.compare_all:
+        return result
+
+    # Uncertainty spread: run the other two presets and compare headline
+    # totals. Same deterministic pipeline; nothing here is re-weighted or
+    # invented — each column is one full honest run of that case.
+    comparison = {}
+    for case_key in ("best", "likely", "worst"):
+        if case_key == body.case:
+            est = result["estimate"]
+        else:
+            try:
+                est = run_case(
+                    body.dam_id, case=case_key, grid_size=body.grid_size,
+                    ensemble_count=0, seed=body.seed,
+                )["estimate"]
+            except Exception as e:
+                comparison[case_key] = {"error": f"run failed: {e}"}
+                continue
+        t = est["totals"]
+        comparison[case_key] = {
+            "overall_risk": t["overall_risk"],
+            "flooded_area_km2": t["flooded_area_km2"],
+            "peak_depth_m": t["peak_depth_m"],
+            "earliest_arrival_min": t["earliest_arrival_min"],
+            "settlements_inundated": t["settlements_inundated"],
+            "settlements_at_risk": t["settlements_at_risk"],
+            "population_exposed_mid": t["population_exposed"]["mid"],
+            "damage_mid_inr": t["damage"]["mid_inr"],
+            "critical_assets_exposed": t["critical_assets_exposed"],
+            "priority_counts": t.get("priority_counts", {}),
+        }
+    result["scenario_comparison"] = {
+        "selected": body.case,
+        "cases": comparison,
+        "note": "Each column is a full screening run of that preset — a spread of plausible outcomes, not confidence intervals.",
+    }
+    return result
 
 
 @router.get("/{sim_run_id}/priority")

@@ -9,6 +9,7 @@ from app.api.v1 import scenarios, sim_runs, impact, alerts, reports, audit, dams
 from app.lisflood import router as lisflood_router
 from app.assistant import router as assistant_router
 from app.auth.local import router as local_auth_router
+from app import damprofile
 
 api_router = APIRouter()
 
@@ -24,3 +25,4 @@ api_router.include_router(sandbox.router, prefix="/sandbox", tags=["Simulation S
 api_router.include_router(lisflood_router.router, prefix="/lisflood", tags=["LISFLOOD-FP (real hydraulics)"])
 api_router.include_router(assistant_router.router, prefix="/assistant", tags=["AI Assistant"])
 api_router.include_router(local_auth_router, prefix="/auth", tags=["Local Auth"])
+api_router.include_router(damprofile.router, prefix="/dams", tags=["Dam Profiles"])

@@ -26,11 +26,22 @@ SETTLEMENT_KINDS = {"city", "town", "village", "hamlet", "suburb", "neighbourhoo
 
 
 def settlements_from_assets(assets: list[dict]) -> list[dict]:
-    """Real mapped settlements, in OSM node order (never synthesized here)."""
+    """Mapped settlements + documented modeled fallback points.
+
+    OSM settlements are real mapped places. When OSM has no data for an area,
+    the asset layer documents downstream sample points (`source: 'modeled'`);
+    they are included so the downstream analysis stays non-empty and honest —
+    the UI must keep labelling them 'modeled sample point, not a real place'
+    (the frontend already does for asset tables).
+    """
     out = []
     for a in assets:
         kind = str(a.get("kind") or "").lower()
-        if kind in SETTLEMENT_KINDS and a.get("lat") is not None and a.get("lon") is not None:
+        is_settlement = kind in SETTLEMENT_KINDS
+        is_modeled_point = kind == "modeled_point"
+        if (is_settlement or is_modeled_point) and a.get("lat") is not None and a.get("lon") is not None:
+            if is_modeled_point and "name" not in a:
+                a = {**a, "name": "Modeled sample point"}
             out.append(a)
     return out
 
@@ -50,6 +61,7 @@ def build_estimate(
     speed_ms: np.ndarray | None = None,
     exposure_pct: np.ndarray | None = None,
     ensemble_runs: int = 0,
+    evacuation_provider=None,
 ) -> dict:
     """Run the HAZARD→…→AVOIDED-LOSS chain over one engine result."""
     return est.estimate_impact(
@@ -67,7 +79,31 @@ def build_estimate(
         speed_ms=speed_ms,
         exposure_pct=exposure_pct,
         ensemble_runs=ensemble_runs,
+        evacuation_provider=evacuation_provider,
     )
+
+
+def _evacuation_provider(dam_id: str, dam: dict, elevation, cell_m: float, bbox, depth_m, arrival_min):
+    """Closure feeding the settlement rows into the OSM evacuation layer.
+
+    Built once per run over the SAME grids the estimate uses, so road sampling
+    and settlement sampling can never disagree about the flood extent.
+    """
+    from app.impact import evacuation as evac
+    from app.impact.estimation import Grid
+
+    dg = Grid(np.asarray(depth_m, dtype=np.float64), cell_m, bbox)
+    ag = Grid(np.asarray(arrival_min, dtype=np.float64), cell_m, bbox)
+
+    def provider(settlement_rows: list[dict]) -> dict:
+        return evac.analyze(
+            dam={"id": dam_id, "name": dam.get("name"), "lat": dam.get("lat"), "lon": dam.get("lon")},
+            depth_grid=dg,
+            arrival_grid=ag,
+            settlements=settlement_rows,
+        )
+
+    return provider
 
 
 def _resolve_meta(dam_id: str) -> dict:
@@ -132,14 +168,19 @@ def run_case(
         arrival_min=result.arrival_min,
         assets=exposed,
         provenance=provenance,
-        dam={"name": meta["name"], "lat": lat, "lon": lon},
+        dam={"id": dam_id, "name": meta["name"], "lat": lat, "lon": lon},
         scenario=scenario.model_dump(),
         engine="sandbox-diffusive-screening-v1",
         exposure_pct=None if agg is None else agg["exposure_pct"],
         ensemble_runs=runs,
+        evacuation_provider=_evacuation_provider(
+            dam_id, {"name": meta["name"], "lat": lat, "lon": lon},
+            elevation, cell_m, bbox, result.maxdepth_m, result.arrival_min,
+        ),
     )
-    return {
+    result = {
         "mode": "REAL COMPUTED SIMULATION (screening model) — impact figures are modelled estimates",
+        "run_id": None,
         "dam_id": dam_id,
         "dam_name": meta["name"],
         "terrain": meta.get("terrain", {}),
@@ -154,3 +195,23 @@ def run_case(
         },
         "asset_provenance": provenance,
     }
+    # Record the completed run in the ledger (id available to alerts/reports).
+    try:
+        from app.runledger import record_run
+
+        row = record_run(
+            dam_id=dam_id,
+            dam_name=meta["name"],
+            case=case,
+            mode=result["mode"],
+            summary=estimate.get("totals", {}),
+            engine="sandbox-diffusive-screening-v1",
+            scenario=scenario.model_dump(),
+            grids_present=False,
+            run_kind="impact",
+        )
+        if row:
+            result["run_id"] = row["id"]
+    except Exception as e:  # ledger must never break a run
+        print(f"[runledger] record failed: {e}")
+    return result

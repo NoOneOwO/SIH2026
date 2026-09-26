@@ -29,7 +29,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Building2, Camera, Compass, Crosshair, Eye, Globe, Layers, Link2, LocateFixed, Minus, Plane, Plus, Radio, Radar, RotateCcw, Satellite, Zap } from 'lucide-react';
-import type { ImpactData, ImpactEstimate, RiskBand } from '../../types/impact';
+import type { EvacuationBlock, ImpactData, ImpactEstimate, RiskBand } from '../../types/impact';
 import { RISK_HEX } from '../../components/impact/format';
 import { INDIA_DAMS } from '../../data/india-dams';
 import { fetchOSMContextGeo } from '../local-3d/osmContext';
@@ -65,6 +65,11 @@ interface GodEye3DProps {
   selectedSettlementId?: string | null;
   /** Globe click on a settlement marker reports the id back to the dashboard. */
   onSelectSettlement?: (id: string | null) => void;
+  /**
+   * Evacuation screening layer (additive): candidate corridors drawn green,
+   * flooded/unsafe major roads red. Absent or 'unavailable' → globe unchanged.
+   */
+  evacuation?: EvacuationBlock | null;
 }
 
 type BasemapKind = 'esri' | 'osm' | 'ion';
@@ -127,7 +132,7 @@ export function decodeShare(hash: string): ShareState | null {
 
 export default function GodEye3D({
   timeMinutes, impactData, cameraTarget, onCameraChange, focusDam, focusNonce = 0,
-  estimate = null, selectedSettlementId = null, onSelectSettlement,
+  estimate = null, selectedSettlementId = null, onSelectSettlement, evacuation = null,
 }: GodEye3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<any>(null);
@@ -135,6 +140,7 @@ export default function GodEye3D({
   const clickHandlerRef = useRef<any>(null);
   const entitiesRef = useRef<string[]>([]);
   const estIdsRef = useRef<string[]>([]);
+  const evacIdsRef = useRef<string[]>([]);
   const onSelectSettlementRef = useRef(onSelectSettlement);
   onSelectSettlementRef.current = onSelectSettlement;
   const flightIdsRef = useRef<string[]>([]);
@@ -155,6 +161,8 @@ export default function GodEye3D({
   // Impact estimate layer: affected zones + settlement markers.
   const [riskLayerOn, setRiskLayerOn] = useState(true);
   const [zoneLayerOn, setZoneLayerOn] = useState(true);
+  // Evacuation screening layer (corridors + unsafe roads).
+  const [evacLayerOn, setEvacLayerOn] = useState(true);
   const [allLabels, setAllLabels] = useState(false);
   const [tracked, setTracked] = useState<{ id: string; label: string; detail: string } | null>(null);
   const [follow, setFollow] = useState(false);
@@ -831,6 +839,71 @@ export default function GodEye3D({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estimate, riskLayerOn, zoneLayerOn, allLabels, selectedSettlementId, ready]);
 
+  // ── Evacuation screening overlay: candidate corridors + unsafe roads ──
+  // Additive to the risk layer; drawn only when road data actually loaded.
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    const Cesium = cesiumRef.current;
+    if (!viewer || !Cesium || !ready) return;
+    removeIds(evacIdsRef.current);
+    evacIdsRef.current = [];
+    if (!evacuation || !evacLayerOn || evacuation.data_source === 'unavailable' || evacuation.data_source === 'not_computed') {
+      refreshContactCount();
+      return;
+    }
+    const ids: string[] = [];
+
+    // Unsafe major roads / bridges (red) — includes bottlenecks visually.
+    evacuation.unsafe_road_paths?.forEach((path, i) => {
+      if (!path || path.length < 2) return;
+      const flat: number[] = [];
+      path.forEach(([lo, la]) => flat.push(lo, la));
+      const id = `evac-unsafe-${i}`;
+      viewer.entities.add({
+        id,
+        name: evacuation.unsafe_roads?.[i]?.name ?? 'Flooded road',
+        description: `Flooded/restricted major road sampled against the modelled flood (screening). Not a surveyed road status.`,
+        polyline: {
+          positions: Cesium.Cartesian3.fromDegreesArray(flat),
+          clampToGround: true,
+          width: 3,
+          material: Cesium.Color.fromCssColorString('#D96B70').withAlpha(0.9),
+        },
+      });
+      ids.push(id);
+    });
+
+    // Candidate corridors (green, dashed): settlement → nearest usable road.
+    evacuation.corridors?.forEach((c, i) => {
+      if (c.status === 'NO CANDIDATE' || !c.candidate_path || c.candidate_path.length < 2) return;
+      const flat: number[] = [];
+      c.candidate_path.forEach(([lo, la]) => flat.push(lo, la));
+      const id = `evac-corr-${i}`;
+      viewer.entities.add({
+        id,
+        name: `Corridor: ${c.settlement_name} → ${c.candidate_route ?? 'road'}`,
+        description:
+          `Candidate evacuation corridor (screening candidate, verify on the ground). ` +
+          `${c.usable_road_distance_km ?? '?'} km • ~${c.travel_time_min ?? '?'} min at ${evacuation.thresholds.travel_speed_kmh} km/h. ` +
+          `Safe direction: ${c.safe_direction ?? '—'}.`,
+        polyline: {
+          positions: Cesium.Cartesian3.fromDegreesArray(flat),
+          clampToGround: true,
+          width: 4,
+          material: new Cesium.PolylineDashMaterialProperty({
+            color: Cesium.Color.fromCssColorString('#55C99A').withAlpha(0.95),
+            dashLength: 14,
+          }),
+        },
+      });
+      ids.push(id);
+    });
+
+    evacIdsRef.current = ids;
+    refreshContactCount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [evacuation, evacLayerOn, ready]);
+
   // ── Live layer: USGS earthquakes (keyless, 5-min refresh) ───────────
   useEffect(() => {
     if (!ready) return;
@@ -1330,6 +1403,23 @@ export default function GodEye3D({
           </div>
           {riskLayerOn && (
             <>
+              {evacuation && evacuation.data_source !== 'unavailable' && evacuation.data_source !== 'not_computed' && (
+                <div className="mb-2 flex items-center justify-between gap-2 border-b border-cmd-border/60 pb-2">
+                  <span className="flex items-center gap-2 text-[10px] text-cmd-muted">
+                    <span className="inline-block h-0.5 w-4" style={{ background: '#55C99A' }} />
+                    corridor
+                    <span className="inline-block h-0.5 w-4" style={{ background: '#D96B70' }} />
+                    unsafe road
+                  </span>
+                  <button
+                    onClick={() => setEvacLayerOn((v) => !v)}
+                    title={evacLayerOn ? 'Hide evacuation layer' : 'Show evacuation layer'}
+                    className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold ${evacLayerOn ? 'bg-cmd-teal/90 text-[#071018]' : 'bg-white/[0.08] text-cmd-muted'}`}
+                  >
+                    {evacLayerOn ? 'ON' : 'OFF'}
+                  </button>
+                </div>
+              )}
               <ul className="mt-2 space-y-1">
                 {(['EXTREME', 'HIGH', 'MODERATE', 'LOW'] as const).map((band) => {
                   const n = estimate.settlements.filter((s) => s.risk === band).length;

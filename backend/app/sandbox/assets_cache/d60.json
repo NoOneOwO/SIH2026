@@ -1,0 +1,534 @@
+[
+  {
+    "lat": 27.5893833,
+    "lon": 94.7255857,
+    "source": "osm",
+    "kind": "town",
+    "name": "Silapathar"
+  },
+  {
+    "lat": 27.5247513,
+    "lon": 94.7287378,
+    "source": "osm",
+    "kind": "town",
+    "name": "Kulajan"
+  },
+  {
+    "lat": 27.6390559,
+    "lon": 94.7098732,
+    "source": "osm",
+    "kind": "village",
+    "name": "Mathuri Pathar"
+  },
+  {
+    "lat": 27.5827365,
+    "lon": 94.6928251,
+    "source": "osm",
+    "kind": "village",
+    "name": "Kendugurigaon"
+  },
+  {
+    "lat": 27.5938202,
+    "lon": 94.6739997,
+    "source": "osm",
+    "kind": "hamlet",
+    "name": "Dhekiani Bam"
+  },
+  {
+    "lat": 27.6101012,
+    "lon": 94.6812701,
+    "source": "osm",
+    "kind": "hamlet",
+    "name": "Kailashpur"
+  },
+  {
+    "lat": 27.5968851,
+    "lon": 94.691865,
+    "source": "osm",
+    "kind": "village",
+    "name": "Barati Gaon"
+  },
+  {
+    "lat": 27.5560142,
+    "lon": 94.7364891,
+    "source": "osm",
+    "kind": "village",
+    "name": "Akajan Miri"
+  },
+  {
+    "lat": 27.5445259,
+    "lon": 94.7405403,
+    "source": "osm",
+    "kind": "village",
+    "name": "Bormuria Chapori"
+  },
+  {
+    "lat": 27.5169168,
+    "lon": 94.7432561,
+    "source": "osm",
+    "kind": "village",
+    "name": "No. 2 Tangani Majgaon"
+  },
+  {
+    "lat": 27.5277352,
+    "lon": 94.7532702,
+    "source": "osm",
+    "kind": "village",
+    "name": "No. 1 Tangani Majgaon"
+  },
+  {
+    "lat": 27.6007304,
+    "lon": 94.7598254,
+    "source": "osm",
+    "kind": "hamlet",
+    "name": "No. 2 Chila Pathar"
+  },
+  {
+    "lat": 27.5957324,
+    "lon": 94.7549378,
+    "source": "osm",
+    "kind": "hamlet",
+    "name": "No. 1 Chila Pathar"
+  },
+  {
+    "lat": 27.6001964,
+    "lon": 94.7634887,
+    "source": "osm",
+    "kind": "hamlet",
+    "name": "Bharaibpur"
+  },
+  {
+    "lat": 27.5974529,
+    "lon": 94.7657396,
+    "source": "osm",
+    "kind": "village",
+    "name": "Silabaligaon"
+  },
+  {
+    "lat": 27.5999259,
+    "lon": 94.7566842,
+    "source": "osm",
+    "kind": "hamlet",
+    "name": "Thekeraguri"
+  },
+  {
+    "lat": 27.5688939,
+    "lon": 94.7670088,
+    "source": "osm",
+    "kind": "village",
+    "name": "Joriguri"
+  },
+  {
+    "lat": 27.5665753,
+    "lon": 94.7437473,
+    "source": "osm",
+    "kind": "hamlet",
+    "name": "Memberchuk"
+  },
+  {
+    "lat": 27.5696466,
+    "lon": 94.7472812,
+    "source": "osm",
+    "kind": "village",
+    "name": "Mishingpur"
+  },
+  {
+    "lat": 27.6282012,
+    "lon": 94.7722828,
+    "source": "osm",
+    "kind": "village",
+    "name": "Jalakia Suti"
+  },
+  {
+    "lat": 27.5842717,
+    "lon": 94.7183264,
+    "source": "osm",
+    "kind": "school",
+    "name": "Shankardev Shishu/Vidya Niketan, Silapathar"
+  },
+  {
+    "lat": 27.6153056,
+    "lon": 94.7678342,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.6361033,
+    "lon": 94.7671355,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Bogibeel Bridge North Block Hut - Murkongselek"
+  },
+  {
+    "lat": 27.6230956,
+    "lon": 94.7549848,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Bogibeel Bridge North Block Hut - Murkongselek"
+  },
+  {
+    "lat": 27.6039814,
+    "lon": 94.733117,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Bogibeel Bridge North Block Hut - Murkongselek"
+  },
+  {
+    "lat": 27.5459177,
+    "lon": 94.6843176,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Bogibeel Bridge North Block Hut - Tangani"
+  },
+  {
+    "lat": 27.5558265,
+    "lon": 94.6774864,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.558662,
+    "lon": 94.6743613,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Bogibeel Bridge North Block Hut - Tangani"
+  },
+  {
+    "lat": 27.5639074,
+    "lon": 94.6786068,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Balipara - Harmuti - Bogibeel"
+  },
+  {
+    "lat": 27.5336659,
+    "lon": 94.6906373,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.5114945,
+    "lon": 94.7462768,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.5194739,
+    "lon": 94.7351191,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.6193734,
+    "lon": 94.7719908,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.537269,
+    "lon": 94.7699818,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.6074927,
+    "lon": 94.7325942,
+    "source": "osm",
+    "kind": "school",
+    "name": "Silapathar Science College"
+  },
+  {
+    "lat": 27.631925,
+    "lon": 94.7449628,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.6172407,
+    "lon": 94.7384919,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.592373,
+    "lon": 94.717318,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.58312,
+    "lon": 94.7340504,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.5758248,
+    "lon": 94.7381522,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.6103781,
+    "lon": 94.7413894,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.6185265,
+    "lon": 94.7257546,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.628397,
+    "lon": 94.7179829,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.6373704,
+    "lon": 94.7198248,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.5921107,
+    "lon": 94.7270706,
+    "source": "osm",
+    "kind": "school",
+    "name": "Silapathar College"
+  },
+  {
+    "lat": 27.5769118,
+    "lon": 94.6806183,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.6426642,
+    "lon": 94.7311684,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.5879369,
+    "lon": 94.7167956,
+    "source": "osm",
+    "kind": "school",
+    "name": "Silapathar Residential Higher Secondary School"
+  },
+  {
+    "lat": 27.587841,
+    "lon": 94.7190885,
+    "source": "osm",
+    "kind": "hospital",
+    "name": "Silapathar Model Hospital"
+  },
+  {
+    "lat": 27.6235265,
+    "lon": 94.7200569,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.5151994,
+    "lon": 94.751088,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.5893512,
+    "lon": 94.8148218,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.593234,
+    "lon": 94.7880277,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.5939391,
+    "lon": 94.7848873,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.5949634,
+    "lon": 94.7811483,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.5963181,
+    "lon": 94.7768025,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.6015918,
+    "lon": 94.7528853,
+    "source": "osm",
+    "kind": "school",
+    "name": "Sila Jana Jati High School"
+  },
+  {
+    "lat": 27.6131535,
+    "lon": 94.7654271,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.5858897,
+    "lon": 94.7265111,
+    "source": "osm",
+    "kind": "police_station",
+    "name": "Silapathar Police Station"
+  },
+  {
+    "lat": 27.634745,
+    "lon": 94.7844081,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.6285316,
+    "lon": 94.7662983,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.6187173,
+    "lon": 94.7760543,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.5834302,
+    "lon": 94.7302549,
+    "source": "osm",
+    "kind": "school",
+    "name": "Silapathar Residential English Higher Secondary School"
+  },
+  {
+    "lat": 27.5943766,
+    "lon": 94.7247603,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.5927395,
+    "lon": 94.7246815,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.5992875,
+    "lon": 94.7274933,
+    "source": "osm",
+    "kind": "school",
+    "name": "Lord Macauly High School"
+  },
+  {
+    "lat": 27.5966121,
+    "lon": 94.7232593,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.5966,
+    "lon": 94.7230859,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Balipara - Harmuti - Bogibeel"
+  },
+  {
+    "lat": 27.5990436,
+    "lon": 94.7214298,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.5654505,
+    "lon": 94.8149341,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.599686,
+    "lon": 94.7211195,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.6164477,
+    "lon": 94.6971124,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.6001199,
+    "lon": 94.6900536,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.5974437,
+    "lon": 94.6864781,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.5883117,
+    "lon": 94.6828753,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 27.5431698,
+    "lon": 94.7027073,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  }
+]

@@ -23,6 +23,9 @@ CACHE_DIR = Path(os.environ.get("DAMSAFE_ASSETS_CACHE", str(BACKEND_DIR / "app" 
 OVERPASS_URL = os.environ.get("OVERPASS_URL", "https://overpass-api.de/api/interpreter")
 CACHE_TTL_DAYS = 30
 
+# Overpass rejects default library User-Agents (406); identify the app.
+HTTP_HEADERS = {"User-Agent": "AquaShield3D/1.0 (dam-break decision-support prototype; contact: dev@damsafe.local)"}
+
 
 def _cache_path(dam_id: str) -> Path:
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -60,7 +63,7 @@ def fetch_osm(lat: float, lon: float, radius_m: float = 8000) -> list[dict]:
     );
     out center 200;
     """.strip()
-    r = requests.post(OVERPASS_URL, data={"data": query}, timeout=70)
+    r = requests.post(OVERPASS_URL, data={"data": query}, timeout=70, headers=HTTP_HEADERS)
     r.raise_for_status()
     data = r.json()
     assets = []

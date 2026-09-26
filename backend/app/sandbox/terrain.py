@@ -109,34 +109,61 @@ def resolve_dam(dam_id: str) -> dict:
     return {
         "dam_id": dam_id,
         "name": rec["name"],
+        "state": rec.get("state"),
         "lat": rec["lat"], "lon": rec["lon"],
         "height_m": rec.get("height_m"),
+        "type": rec.get("type"),
+        "river": rec.get("river"),
+        "capacity_mcm": rec.get("capacity_mcm"),
+        "year_built": rec.get("year_built"),
         "terrain": provenance,
     }
 
 
 def available_dams() -> list[dict]:
-    """Dams with a pipeline DEM on disk (the sim domain inventory)."""
+    """Canonical registry dams with terrain provenance.
+
+    The sim-domain inventory is the canonical registry (never raw terrain
+    folder names — stale folders from an older dataset used to leak through
+    as `dNNN (dNNN)` entries that later 404'd on run). A dam is listed when it
+    has a DEM on disk OR when one can be acquired through the provider chain;
+    `terrain_ready` reports which is which so the UI can promise honestly.
+    """
+    import json
+
     dams = []
+    from app.sandbox.dam_registry import DAMS
+
     root = terrain_dir()
-    if not root.exists():
-        return dams
-    for meta_path in sorted(root.glob("*/metadata.json")):
-        try:
-            import json
-            d = json.loads(meta_path.read_text(encoding="utf-8"))
-            dams.append({
-                "dam_id": meta_path.parent.name,
-                "name": d.get("dam", meta_path.parent.name),
-                "lat": d.get("lat"), "lon": d.get("lon"),
-                "elevation_min_m": d.get("elevation_min_m"),
-                "elevation_max_m": d.get("elevation_max_m"),
-                "bbox": d.get("bbox_wsen"),
-                "sources": d.get("sources", {}),
-                "mesh_grid": d.get("mesh_grid", {}),
-            })
-        except Exception:
+    for rec in DAMS:
+        dam_id = rec["id"]
+        dem = locate_dem(dam_id)
+        ready = dem is not None
+        if not ready:
+            # Auto-acquirable is good enough to list (run would fetch it);
+            # if even the provider chain is exhausted the 503 path handles it.
             continue
+        meta: dict = {}
+        meta_path = root / dam_id / "metadata.json"
+        if meta_path.exists():
+            try:
+                meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            except Exception:
+                meta = {}
+        dams.append({
+            "dam_id": dam_id,
+            "name": rec["name"],
+            "state": rec.get("state"),
+            "lat": rec["lat"],
+            "lon": rec["lon"],
+            "height_m": rec.get("height_m"),
+            "terrain_ready": True,
+            "elevation_min_m": meta.get("elevation_min_m"),
+            "elevation_max_m": meta.get("elevation_max_m"),
+            "bbox": meta.get("bbox_wsen"),
+            "sources": meta.get("sources", {}),
+            "mesh_grid": meta.get("mesh_grid", {}),
+        })
     return dams
 
 

@@ -110,6 +110,9 @@ export default function IncidentConsole() {
   } | null>(null);
   const [cityTarget, setCityTarget] = useState<{ lon: number; lat: number; heightM: number } | null>(null);
   const [modelManifest, setModelManifest] = useState<Record<string, { file: string; name: string }> | null>(null);
+  // While a simulation request is in flight the terrain slowly orbits — the
+  // mesh stays alive instead of a static loading screen.
+  const [simBusy, setSimBusy] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const location = useLocation();
@@ -373,7 +376,8 @@ export default function IncidentConsole() {
               onClose={() => { setFocusedDam(null); backToGlobe(null); }}
               flood={flood}
               cinematic={FEATURES.lisflood && lisfloodOpen}
-              spin={false}
+              spin={simBusy}
+              spinSpeed={1.6}
             />
             {/* Exactly one simulation panel on the mesh: the deep-link result
                 viewer, or the screening model. */}
@@ -390,6 +394,7 @@ export default function IncidentConsole() {
                 autoRun={autoRun}
                 onFlood={setFlood}
                 onExit={() => backToGlobe(focusedDam)}
+                onBusyChange={setSimBusy}
               />
             ) : null}
           </>

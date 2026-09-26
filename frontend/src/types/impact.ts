@@ -28,6 +28,83 @@ export type SettlementStatus = 'INUNDATED' | 'AT RISK' | 'SAFE';
 
 export type SeverityBand = 'DRY' | 'MINOR' | 'LOW' | 'MODERATE' | 'HIGH' | 'EXTREME';
 
+/** Population-at-Risk priority band (deterministic score, never casualties). */
+export type PriorityBand = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
+export interface PriorityBlock {
+  score: number;
+  band: PriorityBand;
+  basis: EvidenceClass;
+  reasons: string[];
+}
+
+/** One mapped critical facility sampled against the modelled flood. */
+export interface EstimateAsset {
+  id: string;
+  name: string;
+  kind: string;
+  lat: number;
+  lon: number;
+  source: string;
+  distance_km: number | null;
+  arrival_min: number | null;
+  depth_m: number;
+  flood_risk: RiskBand;
+  priority: RiskBand;
+  status: 'EXPOSED' | 'DRY';
+  reasons: string[];
+}
+
+export interface EvacCorridor {
+  settlement_id: string;
+  settlement_name: string;
+  priority_band: PriorityBand | string;
+  candidate_route: string | null;
+  candidate_kind?: string;
+  candidate_path?: [number, number][]; // [lon, lat] pairs
+  status: 'RECOMMENDED CANDIDATE' | 'MARGINAL' | 'NO CANDIDATE' | string;
+  usable_road_distance_km: number | null;
+  travel_time_min: number | null;
+  safe_direction: string | null;
+  flood_risk: string;
+  reasons: string[];
+}
+
+export interface UnsafeRoad {
+  id: string;
+  name: string;
+  kind: string;
+  is_bridge: boolean;
+  status: 'FLOODED' | 'RESTRICTED' | 'OUTSIDE_DOMAIN' | string;
+  max_depth_m: number;
+  arrival_min: number | null;
+  length_km: number;
+}
+
+export interface EvacuationBlock {
+  data_source: 'osm-live' | 'osm-cache' | 'unavailable' | 'not_computed' | string;
+  note: string;
+  thresholds: { flooded_road_depth_m: number; restricted_road_depth_m: number; travel_speed_kmh: number };
+  roads_total: number;
+  unsafe_roads: UnsafeRoad[];
+  unsafe_road_paths: [number, number][][]; // polylines [lon, lat]
+  bottlenecks: UnsafeRoad[];
+  corridors: EvacCorridor[];
+  safe_zone: {
+    sectors: Array<{ sector: string; bearing_deg: [number, number]; note: string }>;
+    note: string;
+  };
+}
+
+export interface DecisionSummary {
+  where: string[];
+  when: string[];
+  who: string[];
+  why: string[];
+  basis: EvidenceClass;
+  note: string;
+}
+
 /** A modelled value with its uncertainty band and its reason. */
 export interface BasisBlock {
   basis: EvidenceClass;
@@ -113,6 +190,7 @@ export interface EstimateSettlement {
   population_exposed: PopRange & { share_of_settlement: number };
   population_displaced: PopRange & { share_of_exposed: number };
   facilities_exposed: string[];
+  priority?: PriorityBlock;
   vulnerability: BasisBlock & {
     score: number;
     factors: Array<{ name: string; value: number; weight: number; note: string }>;
@@ -140,6 +218,7 @@ export interface EstimateTotals {
   settlements_at_risk: number;
   settlements_high_or_extreme: number;
   critical_assets_exposed: number;
+  priority_counts?: { LOW: number; MEDIUM: number; HIGH: number; CRITICAL: number };
   population_exposed: PopRange;
   population_displaced: PopRange;
   people_protected: PopRange;
@@ -167,6 +246,9 @@ export interface ImpactEstimate {
   totals: EstimateTotals;
   confidence: EstimateConfidence;
   drivers: EstimateDriver[];
+  assets?: EstimateAsset[];
+  evacuation?: EvacuationBlock;
+  decision?: DecisionSummary;
   settlements: EstimateSettlement[];
   assumptions: EstimateAssumption[];
   method: EstimateMethodStep[];
@@ -186,6 +268,11 @@ export interface ImpactEstimateResponse {
   estimate: ImpactEstimate;
   ensemble: { runs: number; note: string } | null;
   asset_provenance: string;
+  scenario_comparison?: {
+    selected: 'best' | 'likely' | 'worst';
+    cases: Record<string, Record<string, any> | { error: string }>;
+    note: string;
+  } | null;
 }
 
 // ── Viewer payload types (unchanged viewer contract) ─────────────────────────

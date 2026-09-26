@@ -13,9 +13,10 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  AlertTriangle, ChevronDown, Database, Globe2, Layers, ListOrdered,
-  MapPinned, PlayCircle, RefreshCw, ShieldCheck, Users,
+  AlertTriangle, Bot, ChevronDown, Database, Globe2, Layers, ListOrdered,
+  MapPinned, PlayCircle, RefreshCw, Route, ShieldCheck, Users,
 } from 'lucide-react';
 import { impactApi, sandboxApi } from '../../api/client';
 import type { ImpactEstimateResponse } from '../../types/impact';
@@ -23,10 +24,13 @@ import GodEye3D from '../../viewers/gods-eye/GodEye3D';
 import { OverviewView, ImpactView, ResponseView, DataView } from '../../components/impact/views';
 import SettlementDetail from '../../components/impact/SettlementDetail';
 import { ConfidenceBadge, CaveatStrip, EmptyState, RiskBadge, EvidenceTag, Section } from '../../components/impact/primitives';
+import {
+  AssetsView, DecisionCard, EvacuationView, PriorityView, ScenarioPeek, ScenarioSpread,
+} from '../../components/impact/decision';
 import { formatCount, formatInr, formatRange } from '../../components/impact/format';
 import { saveLastAssessment } from '../../utils/lastAssessment';
 
-type Tab = 'overview' | 'map' | 'impact' | 'response' | 'data';
+type Tab = 'overview' | 'map' | 'impact' | 'response' | 'evacuation' | 'data';
 
 /**
  * What the assessment actually does — shown before a run so the user is never
@@ -46,7 +50,8 @@ const TABS: Array<{ key: Tab; label: string; icon: typeof Globe2 }> = [
   { key: 'overview', label: 'Overview', icon: ListOrdered },
   { key: 'map', label: 'Live map', icon: Globe2 },
   { key: 'impact', label: 'Impact', icon: Users },
-  { key: 'response', label: 'Response', icon: ShieldCheck },
+  { key: 'response', label: 'Population at risk', icon: ShieldCheck },
+  { key: 'evacuation', label: 'Evacuation', icon: Route },
   { key: 'data', label: 'Data & confidence', icon: Database },
 ];
 
@@ -74,6 +79,9 @@ export default function ImpactIntelligence() {
   // problem, not a failed assessment, and the two need different guidance.
   const [inventoryError, setInventoryError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Globe camera target: selecting a settlement (list or marker) flies the
+  // Live map in to that town on the dam's downstream terrain.
+  const [cameraTarget, setCameraTarget] = useState<{ lon: number; lat: number; heightM: number } | null>(null);
   const [tab, setTab] = useState<Tab>('overview');
   const [inventoryNonce, setInventoryNonce] = useState(0);
   const autoRanRef = useRef(false);
@@ -129,6 +137,7 @@ export default function ImpactIntelligence() {
           case: which,
           grid_size: 64,
           ensemble_count: 8,
+          compare_all: true,
         });
         setData(res);
         // Hand the computed summary to the dashboard (never a re-derived copy).
@@ -153,9 +162,15 @@ export default function ImpactIntelligence() {
         });
       } catch (e: any) {
         setData(null);
+        const raw = String(e?.message ?? e);
         setError(
-          `Assessment failed: ${e?.message ?? e}. The estimate is never substituted with placeholder data — ` +
-            'check that the backend is reachable and that terrain is available for this dam.',
+          /API Error 404/.test(raw)
+            ? `Assessment failed: ${raw}. This dam has no simulation terrain registered — open it in the Incident ` +
+              'Console once to build its terrain, then retry here.'
+            : /API Error 503/.test(raw)
+              ? `Assessment failed: ${raw}. Terrain for this dam could not be acquired from the DEM providers — try again later.`
+              : `Assessment failed: ${raw}. The estimate is never substituted with placeholder data — ` +
+                'check that the backend is reachable and that terrain is available for this dam.',
         );
       } finally {
         setLoading(false);
@@ -178,7 +193,38 @@ export default function ImpactIntelligence() {
     [estimate, selectedId],
   );
 
-  const handleSelect = useCallback((id: string | null) => setSelectedId(id), []);
+  const handleSelect = useCallback(
+    (id: string | null) => {
+      setSelectedId(id);
+      if (!id || !estimate) return;
+      const s = estimate.settlements.find((x) => x.id === id);
+      if (s) setCameraTarget({ lon: s.lon, lat: s.lat, heightM: 3500 });
+    },
+    [estimate],
+  );
+
+  const navigate = useNavigate();
+
+  /** Hand the whole assessment to the AI assistant (Groq) — no retyping. */
+  const assistWithAssessment = useCallback(() => {
+    if (!data || !estimate) return;
+    try {
+      sessionStorage.setItem(
+        'damsafe-assist-context',
+        JSON.stringify({
+          dam_id: data.dam_id,
+          dam_name: data.dam_name,
+          kind: 'impact',
+          label: data.case,
+          summary: estimate.totals,
+          impacts: estimate.settlements.slice(0, 12),
+        }),
+      );
+    } catch {
+      /* private mode — assistant opens without context */
+    }
+    navigate('/assistant?ctx=1');
+  }, [data, estimate, navigate]);
 
   const headline = estimate
     ? `${estimate.totals.settlements_inundated} settlement${
@@ -268,6 +314,13 @@ export default function ImpactIntelligence() {
               <RiskBadge risk={estimate.totals.overall_risk} />
               <p className="min-w-0 flex-1 text-[12.5px] font-medium text-cmd-ink/90">{headline}</p>
               <ConfidenceBadge level={estimate.confidence.level} score={estimate.confidence.score} />
+              <button
+                onClick={assistWithAssessment}
+                title="Open the AI assistant with this full assessment attached"
+                className="flex items-center gap-1.5 rounded-lg border border-cmd-teal/50 px-2.5 py-1.5 text-[11px] font-bold text-cmd-teal transition-colors hover:bg-cmd-tealdim"
+              >
+                <Bot className="h-3.5 w-3.5" /> Ask AI assistant
+              </button>
             </>
           )}
           {!estimate && !loading && !inventoryError && (
@@ -406,10 +459,11 @@ export default function ImpactIntelligence() {
               <GodEye3D
                 timeMinutes={0}
                 impactData={null}
-                cameraTarget={null}
+                cameraTarget={cameraTarget}
                 onCameraChange={() => {}}
                 focusDam={{ lon: estimate.dam.lon ?? 0, lat: estimate.dam.lat ?? 0, name: estimate.dam.name }}
                 estimate={estimate}
+                evacuation={estimate.evacuation ?? null}
                 selectedSettlementId={selectedId}
                 onSelectSettlement={handleSelect}
               />
@@ -434,7 +488,7 @@ export default function ImpactIntelligence() {
                   {estimate.settlements.slice(0, 8).map((s) => (
                     <button
                       key={s.id}
-                      onClick={() => setSelectedId(s.id)}
+                      onClick={() => handleSelect(s.id)}
                       className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors ${
                         selectedId === s.id
                           ? 'border-cmd-teal/50 bg-cmd-tealdim'
@@ -470,12 +524,32 @@ export default function ImpactIntelligence() {
           <div className="h-full overflow-y-auto">
             <div className="mx-auto max-w-[1700px] space-y-4 p-4">
               {estimate && tab === 'overview' && (
-                <OverviewView estimate={estimate} onSelect={handleSelect} selectedId={selectedId} />
+                <>
+                  {estimate.decision && <DecisionCard decision={estimate.decision} />}
+                  <OverviewView estimate={estimate} onSelect={handleSelect} selectedId={selectedId} />
+                  {data?.scenario_comparison && (
+                    <ScenarioPeek onOpen={() => setTab('evacuation')} />
+                  )}
+                </>
               )}
               {estimate && tab === 'impact' && (
-                <ImpactView estimate={estimate} onSelect={handleSelect} selectedId={selectedId} />
+                <>
+                  <AssetsView assets={estimate.assets ?? []} />
+                  <ImpactView estimate={estimate} onSelect={handleSelect} selectedId={selectedId} />
+                </>
               )}
-              {estimate && tab === 'response' && <ResponseView estimate={estimate} />}
+              {estimate && tab === 'response' && (
+                <>
+                  <PriorityView estimate={estimate} />
+                  <ResponseView estimate={estimate} />
+                </>
+              )}
+              {estimate && tab === 'evacuation' && (
+                <>
+                  {data?.scenario_comparison && <ScenarioSpread comparison={data.scenario_comparison} />}
+                  {estimate.evacuation && <EvacuationView evacuation={estimate.evacuation} />}
+                </>
+              )}
               {estimate && tab === 'data' && (
                 <DataView
                   estimate={estimate}

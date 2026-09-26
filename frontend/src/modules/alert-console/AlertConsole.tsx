@@ -45,7 +45,9 @@ export default function AlertConsole() {
   const [language, setLanguage] = useState<'en' | 'hi'>('en');
   const [severity, setSeverity] = useState<'watch' | 'warning' | 'emergency'>('warning');
   const [simRunId, setSimRunId] = useState('');
-  const [doneRuns, setDoneRuns] = useState<Array<{ id: string; scenario_id: string; finished_at?: string | null }>>([]);
+  const [doneRuns, setDoneRuns] = useState<
+    Array<{ id: string; dam_name?: string; case?: string; run_kind?: string; finished_at?: string | null; created_at?: string | null }>
+  >([]);
   const [alerts, setAlerts] = useState<AlertRow[] | null>(null);
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
@@ -89,7 +91,7 @@ export default function AlertConsole() {
 
   const createDraft = async () => {
     if (!simRunId.trim()) {
-      flash('A simulation run id is required — alerts are always tied to the run they describe.', true);
+      flash('No run selected — completed runs appear here after you run a simulation in the Sandbox or Impact screens.', true);
       return;
     }
     setBusy('draft');
@@ -264,18 +266,17 @@ export default function AlertConsole() {
                 >
                   {doneRuns.map((r) => (
                     <option key={r.id} value={r.id}>
-                      {r.id.slice(0, 8)}… · scenario {String(r.scenario_id).slice(0, 8)}…
-                      {r.finished_at ? ` · ${new Date(r.finished_at).toLocaleString()}` : ''}
+                      {r.dam_name ?? 'Dam'}{r.case ? ` · ${r.case}` : ''} · {r.finished_at || r.created_at ? new Date(r.finished_at || r.created_at || '').toLocaleString() : r.id.slice(0, 8)}
                     </option>
                   ))}
                 </select>
               ) : (
-                <input
-                  value={simRunId}
-                  onChange={(e) => setSimRunId(e.target.value)}
-                  placeholder="No completed runs yet — paste a run UUID"
-                  className="w-full rounded-lg border border-cmd-border bg-cmd-panel2 px-3 py-2 text-sm text-cmd-ink focus:border-cmd-teal/60 focus:outline-none"
-                />
+                <div className="rounded-lg border border-dashed border-cmd-border px-3 py-2.5 text-xs leading-relaxed text-cmd-muted">
+                  No completed runs yet. Run a simulation first — it then appears here by name, no id needed.{' '}
+                  <Link to="/impact" className="font-semibold text-cmd-teal hover:text-cmd-ink">
+                    Open Impact screen
+                  </Link>
+                </div>
               )}
             </div>
           </div>

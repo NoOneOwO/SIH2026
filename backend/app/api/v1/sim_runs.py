@@ -114,22 +114,60 @@ async def list_sim_runs(
     user: CurrentUser = Depends(require_role("viewer")),
     db: AsyncSession = Depends(get_db),
 ):
-    """List simulation runs with optional filters."""
+    """List simulation runs (DB classic path + sandbox ledger) with filters.
+
+    The interactive sandbox/impact engine is stateless, so its completed runs
+    live in the run ledger (backend/data/run_ledger.json) instead of the
+    ``sim_runs`` table. Both sources are merged here so Alert Console and
+    Report Generator show every completed run without the user ever needing
+    to hunt for a UUID — rows carry dam/case labels for readable pickers.
+    """
     runs, total = await service.list_sim_runs(db, scenario_id, job_status, limit, offset)
+    merged = [
+        {
+            "id": str(r.id),
+            "run_kind": "classic",
+            "dam_id": None,
+            "dam_name": None,
+            "case": None,
+            "scenario_id": str(r.scenario_id),
+            "job_status": r.job_status,
+            "mass_balance_error": r.mass_balance_error,
+            "within_tolerance": r.within_tolerance,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "finished_at": r.finished_at.isoformat() if r.finished_at else None,
+        }
+        for r in runs
+    ]
+
+    # Sandbox ledger: only 'done' runs are shown, matching the classic filter.
+    ledger_count = 0
+    if job_status in (None, "done"):
+        from app.runledger import list_runs as ledger_list
+
+        for row in ledger_list(dam_id=None, limit=limit):
+            if scenario_id is not None:
+                continue  # ledger rows have no scenario_id; classic filter wins
+            merged.append({
+                "id": row["id"],
+                "run_kind": row.get("run_kind", "sandbox"),
+                "dam_id": row.get("dam_id"),
+                "dam_name": row.get("dam_name"),
+                "case": row.get("case"),
+                "scenario_id": None,
+                "job_status": "done",
+                "mass_balance_error": None,
+                "within_tolerance": None,
+                "created_at": row.get("created_at"),
+                "finished_at": row.get("created_at"),
+                "summary": row.get("summary", {}),
+                "grids_present": row.get("grids_present", False),
+            })
+            ledger_count += 1
+    merged.sort(key=lambda x: x.get("finished_at") or x.get("created_at") or "", reverse=True)
     return {
-        "total": total,
+        "total": total + ledger_count,
         "limit": limit,
         "offset": offset,
-        "sim_runs": [
-            {
-                "id": str(r.id),
-                "scenario_id": str(r.scenario_id),
-                "job_status": r.job_status,
-                "mass_balance_error": r.mass_balance_error,
-                "within_tolerance": r.within_tolerance,
-                "created_at": r.created_at.isoformat() if r.created_at else None,
-                "finished_at": r.finished_at.isoformat() if r.finished_at else None,
-            }
-            for r in runs
-        ],
+        "sim_runs": merged,
     }

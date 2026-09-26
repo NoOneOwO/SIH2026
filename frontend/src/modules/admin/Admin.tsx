@@ -9,6 +9,7 @@ import { ShieldCheck, Check, X, FileText, FlaskConical, ExternalLink } from 'luc
 import { authApi, type AuthUser } from '../../api/auth';
 import { useAuth } from '../../auth/AuthContext';
 import { INDIA_DAMS } from '../../data/india-dams';
+import DamRegistry from '../../components/admin/DamRegistry';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 import { storedToken } from '../../api/client';
@@ -176,6 +177,9 @@ export default function Admin() {
             ))}
           </div>
         </div>
+
+        {/* Dam registry: every dam, its documents, completeness and condition screen */}
+        <DamRegistry />
 
         {/* Simulations ledger */}
         <div className="cmd-card p-5">

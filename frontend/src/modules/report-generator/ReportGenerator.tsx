@@ -7,10 +7,10 @@
  * data — nothing on this page is canned.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
-import { FileText, Download, Eye, Printer, Inbox, Megaphone } from 'lucide-react';
+import { FileText, Download, Eye, Printer, Inbox, Megaphone, Sparkles } from 'lucide-react';
 import { impactApi, reportsApi, simRunsApi } from '../../api/client';
 
 interface InboxDoc {
@@ -25,8 +25,12 @@ interface InboxDoc {
 
 interface SimRunRow {
   id: string;
-  scenario_id: string;
+  scenario_id?: string | null;
   job_status: string;
+  /** Ledger rows (sandbox/impact runs) carry these; classic DB rows may not. */
+  run_kind?: string;
+  dam_name?: string;
+  case?: string;
   finished_at?: string | null;
   created_at?: string | null;
 }
@@ -55,6 +59,9 @@ export default function ReportGenerator() {
   const [broadcastMsg, setBroadcastMsg] = useState('');
   const [inbox, setInbox] = useState<InboxDoc[]>([]);
   const [openDoc, setOpenDoc] = useState<string | null>(null);
+  const [polishing, setPolishing] = useState(false);
+  const [polishMsg, setPolishMsg] = useState('');
+  const prePolishRef = useRef<string | null>(null);
 
   async function loadRuns() {
     setRunsError('');
@@ -71,6 +78,12 @@ export default function ReportGenerator() {
       setRunsError(e?.message ?? 'Could not load simulation runs');
       setRuns([]);
     }
+  }
+
+  /** Human-readable run label — sandbox/impact ledger rows show dam + case. */
+  function runLabel(r: SimRunRow): string {
+    const when = r.finished_at || r.created_at;
+    return `${r.dam_name ?? 'Dam'}${r.case ? ` · ${r.case}` : ''}${when ? ` · ${new Date(when).toLocaleString()}` : ''}`;
   }
 
   async function loadInbox() {
@@ -95,6 +108,13 @@ export default function ReportGenerator() {
       setPreviewNote('');
       return;
     }
+    // Sandbox/impact ledger runs have no classic priority endpoint — their
+    // modelled figures live in the run record and the generated report.
+    if (runs.find((r) => r.id === selectedRun)?.run_kind) {
+      setPreview([]);
+      setPreviewNote('Sandbox/impact run — its modelled figures are embedded in the generated report.');
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -116,7 +136,7 @@ export default function ReportGenerator() {
     return () => {
       cancelled = true;
     };
-  }, [selectedRun]);
+  }, [selectedRun, runs]);
 
   function saveBlob(blob: Blob, filename: string) {
     const url = URL.createObjectURL(blob);
@@ -137,18 +157,61 @@ export default function ReportGenerator() {
     }
     setGenerating(true);
     try {
-      const { blob, filename } = await reportsApi.downloadReport(selectedRun);
+      // Ledger-aware endpoint: embeds the officer's note and works for every
+      // completed run (sandbox/impact ledger runs and classic DB runs alike).
+      const body: { note: string; enhance: boolean; title?: string } = {
+        note: officerNote.trim(),
+        enhance: false, // the note is already AI-polished via the dedicated button
+      };
+      if (docTitle.trim()) body.title = docTitle.trim();
+      const { blob, filename } = await reportsApi.downloadReport(selectedRun, body);
       saveBlob(blob, filename);
       setGenerateMsg(
         filename.endsWith('.html')
           ? `PDF engine unavailable — downloaded HTML report (${filename}) instead.`
-          : `Report downloaded (${filename}).`,
+          : `Report downloaded (${filename}) — officer note embedded.`,
       );
     } catch (e: any) {
       setGenerateMsg(`Generation failed: ${e?.message ?? 'backend error'}`);
     } finally {
       setGenerating(false);
     }
+  }
+
+  /** Groq-assisted polish: restructures the officer's prose, never the facts. */
+  async function handlePolish() {
+    if (!officerNote.trim()) {
+      setPolishMsg('Write the officer note first — the assistant restructures your text, it does not invent one.');
+      return;
+    }
+    setPolishing(true);
+    setPolishMsg('');
+    prePolishRef.current = officerNote;
+    try {
+      const res = await reportsApi.assistNote({
+        note: officerNote,
+        run_id: selectedRun || null,
+        kind: docKind,
+        title: docTitle,
+      });
+      if (res?.note) setOfficerNote(res.note);
+      setPolishMsg(
+        res?.source === 'groq'
+          ? 'Note polished with the configured LLM — your facts kept, wording restructured. You can undo.'
+          : `AI polish unavailable (${res?.source ?? 'no provider'}) — note kept as written.`,
+      );
+    } catch (e: any) {
+      prePolishRef.current = null;
+      setPolishMsg(`AI polish failed: ${e?.message ?? 'backend error'}`);
+    } finally {
+      setPolishing(false);
+    }
+  }
+
+  function undoPolish() {
+    if (prePolishRef.current !== null) setOfficerNote(prePolishRef.current);
+    prePolishRef.current = null;
+    setPolishMsg('Original officer note restored.');
   }
 
   async function handleBroadcast() {
@@ -211,19 +274,31 @@ export default function ReportGenerator() {
               <select value={selectedRun} onChange={(e) => setSelectedRun(e.target.value)} className={`${inputCls} mt-1`}>
                 {runs.map((r) => (
                   <option key={r.id} value={r.id}>
-                    {r.id.slice(0, 8)}… · done{r.finished_at ? ` · ${new Date(r.finished_at).toLocaleString()}` : ''}
+                    {runLabel(r)}
                   </option>
                 ))}
-                {!runs.length && <option value="">No completed runs</option>}
+                {!runs.length && <option value="">No completed runs yet</option>}
               </select>
             </label>
           </div>
           {runsError && <p className="mb-3 text-xs text-cmd-amber">{runsError}</p>}
-          <label className="block text-xs font-medium text-cmd-muted">Officer's note <span className="font-normal">(free text — included verbatim in the document)</span>
+          <label className="block text-xs font-medium text-cmd-muted">Officer's note <span className="font-normal">(free text — embedded in the report; AI-polish optional)</span>
             <textarea value={officerNote} onChange={(e) => setOfficerNote(e.target.value)} rows={4}
               className={`${inputCls} mt-1 leading-relaxed`}
               placeholder="Type what you need: emergent help, teams, boats, shelters, road closures…" />
           </label>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button onClick={handlePolish} disabled={polishing} className={`${ghostBtn} !py-1.5 !text-xs`}>
+              <Sparkles className={`w-3.5 h-3.5 ${polishing ? 'animate-pulse' : ''}`} />
+              {polishing ? 'Polishing…' : 'AI polish note (Groq)'}
+            </button>
+            {prePolishRef.current !== null && (
+              <button onClick={undoPolish} className={`${ghostBtn} !py-1.5 !text-xs`}>
+                Undo — restore my text
+              </button>
+            )}
+            {polishMsg && <p className="text-xs text-cmd-muted">{polishMsg}</p>}
+          </div>
 
           <div className="mt-4 flex flex-wrap gap-3">
             <button onClick={handleGenerate} disabled={generating || !selectedRun}
@@ -322,7 +397,8 @@ export default function ReportGenerator() {
           <h3 className="text-[15px] font-semibold text-cmd-ink mb-4">Completed Simulation Runs</h3>
           {!runs.length ? (
             <p className="text-xs text-cmd-muted">
-              {runsError || 'No completed runs yet. Enqueue a scenario run and it appears here with its report.'}
+              {runsError ||
+                'No completed runs yet. A completed run is any sandbox/impact run that returned real computed output on real DEM terrain (the offline demo bundle does not count) or a classic pipeline run that finished — run one in the Sandbox or Impact screen and it appears here.'}
             </p>
           ) : (
             <div className="space-y-2.5">
@@ -331,11 +407,8 @@ export default function ReportGenerator() {
                   <div className="flex items-center gap-3">
                     <FileText className="w-5 h-5 text-cmd-teal" strokeWidth={1.75} />
                     <div>
-                      <div className="text-sm font-medium text-cmd-ink font-mono">{r.id.slice(0, 8)}…</div>
-                      <div className="text-xs text-cmd-muted tabular-nums">
-                        scenario {String(r.scenario_id).slice(0, 8)}…
-                        {r.finished_at ? ` · ${new Date(r.finished_at).toLocaleString()}` : ''}
-                      </div>
+                      <div className="text-sm font-medium text-cmd-ink">{runLabel(r)}</div>
+                      <div className="text-xs text-cmd-muted font-mono tabular-nums">run {r.id.slice(0, 8)}…</div>
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -345,7 +418,10 @@ export default function ReportGenerator() {
                     <button
                       onClick={async () => {
                         try {
-                          const { blob, filename } = await reportsApi.downloadReport(r.id);
+                          const { blob, filename } = await reportsApi.downloadReport(r.id, {
+                            note: officerNote.trim(),
+                            enhance: false,
+                          });
                           saveBlob(blob, filename);
                         } catch (e: any) {
                           setGenerateMsg(`Download failed: ${e?.message ?? 'backend error'}`);

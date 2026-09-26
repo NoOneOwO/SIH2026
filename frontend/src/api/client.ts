@@ -81,6 +81,8 @@ export const damsApi = {
   list: () => apiFetch<{ total: number; dams: any[] }>('/dams'),
   get: (id: string) => apiFetch<any>(`/dams/${id}`),
   create: (data: any) => apiFetch<any>('/dams', { method: 'POST', body: JSON.stringify(data) }),
+  /** Per-dam registry summary for the Admin panel (docs, completeness, condition, sim). */
+  registrySummary: () => apiFetch<{ total: number; dams: any[] }>('/dams/registry/summary'),
 };
 
 // ── Scenarios ─────────────────────────────────────────────────────────────────
@@ -128,6 +130,8 @@ export interface ImpactEstimateParams {
   /** Scenario runs used for the per-cell exposure frequency (0 = skip). */
   ensemble_count?: number;
   seed?: number;
+  /** Also run best/likely/worst and return the totals spread (uncertainty). */
+  compare_all?: boolean;
 }
 
 export const impactApi = {
@@ -166,18 +170,39 @@ export const alertsApi = {
 
 export const reportsApi = {
   getPdfUrl: (simRunId: string) => `${BASE_URL}/api/v1/reports/${simRunId}/pdf`,
-  /** Download the generated EAP file (PDF, or HTML fallback) as a blob. */
-  downloadReport: async (simRunId: string): Promise<{ blob: Blob; filename: string }> => {
-    const url = `${BASE_URL}/api/v1/reports/${simRunId}/pdf`;
-    const headers: Record<string, string> = {};
+  /**
+   * Download the generated EAP file (PDF, or HTML fallback) as a blob.
+   * With `body`, uses the ledger-aware POST endpoint, which embeds the
+   * officer's note (optionally AI-polished by the configured LLM) and works
+   * for ANY completed run — sandbox/impact ledger runs and classic DB runs
+   * alike. Without it, the original classic-run GET endpoint is used.
+   */
+  downloadReport: async (
+    simRunId: string,
+    body?: { note?: string; enhance?: boolean; title?: string },
+  ): Promise<{ blob: Blob; filename: string }> => {
+    const url = body
+      ? `${BASE_URL}/api/v1/reports/run/${simRunId}/report`
+      : `${BASE_URL}/api/v1/reports/${simRunId}/pdf`;
+    const headers: Record<string, string> = {
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
+    };
     const token = storedToken();
     if (token) headers['Authorization'] = `Bearer ${token}`;
     else if (import.meta.env.DEV) headers['Authorization'] = 'Bearer dev-token';
     let response: Response;
     try {
-      response = await fetch(url, { headers });
+      response = await fetch(url, {
+        headers,
+        ...(body
+          ? {
+              method: 'POST',
+              body: JSON.stringify({ note: body.note ?? '', enhance: body.enhance ?? false, title: body.title ?? '' }),
+            }
+          : {}),
+      });
     } catch (e: any) {
-      throw new BackendUnavailableError(`/reports/${simRunId}/pdf: ${e?.message ?? 'network error'}`);
+      throw new BackendUnavailableError(`/reports/${simRunId}: ${e?.message ?? 'network error'}`);
     }
     if (!response.ok) {
       const body = (await response.text().catch(() => '')).slice(0, 300);
@@ -191,6 +216,16 @@ export const reportsApi = {
     return { blob: await response.blob(), filename };
   },
   getHtml: (simRunId: string) => apiFetch<any>(`/reports/${simRunId}/html`),
+  /**
+   * AI-assisted note polish (configured LLM / Groq): restructures the
+   * officer's free text into a professional document body. Grounded — the
+   * model receives the recorded run summary + dam facts and must preserve
+   * every officer fact, never inventing figures. Returns { note, source }.
+   */
+  assistNote: (data: { note: string; run_id?: string | null; dam_id?: string | null; kind?: string; title?: string }) =>
+    apiFetch<{ note: string; source: string }>('/reports/assist-note', {
+      method: 'POST', body: JSON.stringify(data),
+    }),
   broadcast: (data: { title: string; kind: string; body: string; dam_id?: string | null }) =>
     apiFetch<{ status: string; id: string }>(`/reports/broadcast`, {
       method: 'POST', body: JSON.stringify(data),
@@ -243,6 +278,16 @@ export const lisfloodApi = {
   metadata: (jobId: string) => apiFetch<any>(`/lisflood/${jobId}/metadata`),
   result: (jobId: string) => apiFetch<any>(`/lisflood/${jobId}/result`),
   logs: (jobId: string) => apiFetch<any>(`/lisflood/${jobId}/logs`),
+};
+
+// ── Dam profiles & official documents (condition assessment) ─────────────
+
+export const damProfileApi = {
+  profile: (damId: string) => apiFetch<any>(`/dams/${damId}/profile`),
+  saveProfile: (damId: string, data: any) =>
+    apiFetch<any>(`/dams/${damId}/profile`, { method: 'PUT', body: JSON.stringify(data) }),
+  condition: (damId: string) => apiFetch<any>(`/dams/${damId}/condition`),
+  documents: (damId: string) => apiFetch<any>(`/dams/${damId}/documents`),
 };
 
 // ── Simulation Sandbox (counterfactual breach engine; screening model) ────

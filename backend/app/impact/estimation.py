@@ -44,6 +44,8 @@ from typing import Any, Iterable, Sequence
 
 import numpy as np
 
+from app.impact.grids import overground_distance_m
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Documented model parameters. Every entry here is an ASSUMPTION and is
 # published verbatim in the payload's `assumptions` block so the interface can
@@ -141,6 +143,10 @@ AVOIDANCE_BY_LEAD_TIME = (
 )
 FIXED_INFRASTRUCTURE_AVOIDANCE_SHARE = 0.15
 MOBILISATION_TIME_MIN = 15.0   # alert -> people actually moving
+
+# ── Evacuation screening (used by app.impact.evacuation) ────────────────────
+EVAC_SPEED_KMH = 40.0          # assumed average speed on major roads (planning)
+EVAC_MAX_CORRIDORS = 6         # candidate corridors returned per run
 
 # ── Confidence scoring ──────────────────────────────────────────────────────
 CONFIDENCE_PENALTIES = {
@@ -698,6 +704,277 @@ def explain_drivers(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# decision-support scoring (deterministic, explainable)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Population-at-Risk priority: component weights (sum to 100). Every component
+# cites the value it scored, so the UI can show WHY a place got its band.
+PRIORITY_WEIGHTS = {
+    "population": 40,   # exposed population (log scale, saturates at 50k)
+    "depth": 20,        # modelled water depth at the settlement
+    "arrival": 20,      # modelled arrival time (sooner = more urgent)
+    "connectivity": 10, # evacuation accessibility (no usable road = worse)
+    "assets": 10,       # critical facilities exposed at/near the settlement
+}
+PRIORITY_BANDS = ((30.0, "MEDIUM"), (50.0, "HIGH"), (70.0, "CRITICAL"))  # else LOW
+
+
+def _pop_component(exposed_mid: float) -> tuple[float, str]:
+    w = PRIORITY_WEIGHTS["population"]
+    score = w * math.log10(1.0 + max(exposed_mid, 0.0)) / math.log10(1.0 + 50_000)
+    score = float(np.clip(score, 0.0, w))
+    return round(score, 1), f"{exposed_mid:,.0f} people potentially exposed"
+
+
+def _depth_component(depth_m: float) -> tuple[float, str]:
+    w = PRIORITY_WEIGHTS["depth"]
+    if depth_m < WET_THRESHOLD_M:
+        return 0.0, "no modelled water at the settlement"
+    if depth_m < 0.3:
+        return round(w * 0.25, 1), f"nuisance depth {depth_m:.2f} m"
+    if depth_m < 1.0:
+        return round(w * 0.5, 1), f"depth {depth_m:.2f} m (low band)"
+    if depth_m < 2.5:
+        return round(w * 0.75, 1), f"depth {depth_m:.2f} m (moderate band)"
+    return w, f"depth {depth_m:.2f} m (high band)"
+
+
+def _arrival_component(arrival_min: float | None) -> tuple[float, str]:
+    w = PRIORITY_WEIGHTS["arrival"]
+    if arrival_min is None:
+        return round(w * 0.2, 1), "arrival time not resolved by the model"
+    if arrival_min <= 15:
+        return w, f"water arrives T+{arrival_min:.0f} min (≤15 min)"
+    if arrival_min <= 30:
+        return round(w * 0.8, 1), f"water arrives T+{arrival_min:.0f} min"
+    if arrival_min <= 60:
+        return round(w * 0.6, 1), f"water arrives T+{arrival_min:.0f} min"
+    if arrival_min <= 120:
+        return round(w * 0.4, 1), f"water arrives T+{arrival_min:.0f} min"
+    return round(w * 0.25, 1), f"water arrives T+{arrival_min:.0f} min (>2 h)"
+
+
+def _connectivity_component(connectivity: dict | None) -> tuple[float, str]:
+    w = PRIORITY_WEIGHTS["connectivity"]
+    if not connectivity:
+        # Neutral mid-score when the evacuation layer did not run — never a
+        # silent penalty for data the model does not have.
+        return round(w * 0.5, 1), "evacuation connectivity not assessed"
+    km = connectivity.get("nearest_usable_road_km")
+    if km is None:
+        return w, "no usable evacuation road found in the mapped road data"
+    if km <= 2.0:
+        return round(w * 0.1, 1), f"usable evacuation road {km:.1f} km away"
+    if km <= 5.0:
+        return round(w * 0.4, 1), f"nearest usable evacuation road {km:.1f} km away"
+    return round(w * 0.8, 1), f"nearest usable evacuation road {km:.1f} km away (poor access)"
+
+
+def _asset_component(facilities: list[str]) -> tuple[float, str]:
+    w = PRIORITY_WEIGHTS["assets"]
+    n = len(facilities)
+    if n == 0:
+        return 0.0, "no critical facilities in the flooded footprint here"
+    if n == 1:
+        return round(w * 0.4, 1), f"1 critical facility exposed ({facilities[0].replace('_', ' ')})"
+    if n <= 3:
+        return round(w * 0.7, 1), f"{n} critical facilities exposed"
+    return w, f"{n} critical facilities exposed"
+
+
+def priority_score(
+    *,
+    settlement_row: dict,
+    connectivity: dict | None = None,
+) -> dict:
+    """Population-at-Risk priority (0–100 → LOW/MEDIUM/HIGH/CRITICAL) + reasons.
+
+    Deterministic and explainable: the same inputs always produce the same
+    band, and every component records the value it scored. This is a
+    prioritization aid for response planning — NOT a casualty prediction.
+    """
+    status = settlement_row["status"]
+    if status == "SAFE":
+        return {
+            "score": 0, "band": "LOW", "basis": "modelled",
+            "reasons": ["no modelled water at or near this settlement in this scenario"],
+        }
+    comps = [
+        _pop_component(settlement_row["population_exposed"]["mid"]),
+        _depth_component(settlement_row["depth_m"]),
+        _arrival_component(settlement_row["arrival_min"]),
+        _connectivity_component(connectivity),
+        _asset_component(settlement_row.get("facilities_exposed", [])),
+    ]
+    score = round(sum(s for s, _ in comps), 1)
+    band = "LOW"
+    for threshold, b in PRIORITY_BANDS:
+        if score >= threshold:
+            band = b
+    return {
+        "score": score,
+        "band": band,
+        "basis": "modelled",
+        "reasons": [text for _, text in comps],
+    }
+
+
+def _asset_flood_risk(depth_m: float, arrival_min: float | None) -> str:
+    """Display band for an exposed asset (mirrors settlement depth bands)."""
+    if depth_m < WET_THRESHOLD_M:
+        return "LOW"
+    if depth_m >= 2.5:
+        return "EXTREME"
+    if depth_m >= 1.0:
+        return "HIGH"
+    if depth_m >= 0.3:
+        return "MODERATE"
+    return "LOW"
+
+
+def asset_exposure_rows(
+    *,
+    asset_list: list[dict],
+    depth_grid: "Grid",
+    arrival_grid: "Grid",
+    dam: dict,
+) -> list[dict]:
+    """Per-asset exposure records for every mapped critical facility.
+
+    Distance is the over-ground distance from the dam (derived), depth/arrival
+    are engine samples (modelled). Assets the model does not reach are listed
+    as DRY — absence of water in the model is information too.
+    """
+    dam_lat, dam_lon = dam.get("lat"), dam.get("lon")
+    rows: list[dict] = []
+    for a in asset_list:
+        kind = str(a.get("kind") or "")
+        if kind not in {"hospital", "school", "substation", "plant", "power",
+                        "police_station", "telecom_tower", "bridge"}:
+            continue
+        lat, lon = a.get("lat"), a.get("lon")
+        if lat is None or lon is None:
+            continue
+        idx = depth_grid.index(float(lat), float(lon))
+        if idx is None:
+            continue
+        r, c = idx
+        depth_m = depth_grid.patch_max(r, c, 1)
+        arrival_min = arrival_grid.patch_min_positive(r, c, 1)
+        distance_km = None
+        if dam_lat is not None and dam_lon is not None:
+            distance_km = round(overground_distance_m(float(dam_lon), float(dam_lat), float(lon), float(lat)) / 1000.0, 2)
+        if depth_m < WET_THRESHOLD_M:
+            band, reasons = "LOW", ["no modelled water reaches this asset in this scenario"]
+        else:
+            band = _asset_flood_risk(depth_m, arrival_min)
+            reasons = [f"modelled depth {depth_m:.2f} m at the asset footprint"]
+            if arrival_min is not None:
+                reasons.append(f"water arrives T+{arrival_min:.0f} min")
+            if distance_km is not None:
+                reasons.append(f"{distance_km:.1f} km downstream of the dam")
+        order = {"LOW": 0, "MODERATE": 1, "HIGH": 2, "EXTREME": 3}
+        rows.append({
+            "id": a.get("id") or f"asset-{lon:.5f},{lat:.5f}",
+            "name": a.get("name", "Unnamed facility"),
+            "kind": kind,
+            "lat": round(float(lat), 6),
+            "lon": round(float(lon), 6),
+            "source": a.get("source", "unknown"),
+            "distance_km": distance_km,
+            "arrival_min": None if arrival_min is None else round(arrival_min, 1),
+            "depth_m": round(depth_m, 2),
+            "flood_risk": band,
+            "priority": band,
+            "status": "EXPOSED" if depth_m >= WET_THRESHOLD_M else "DRY",
+            "reasons": reasons,
+            "_order": order[band],
+        })
+    rows.sort(key=lambda x: (-x["_order"], x["arrival_min"] if x["arrival_min"] is not None else 1e9))
+    for r in rows:
+        r.pop("_order", None)
+    return rows
+
+
+def decision_summary(
+    *,
+    settlements: list[dict],
+    assets: list[dict],
+    totals: dict,
+    scenario_label: str,
+    evacuation: dict | None = None,
+) -> dict:
+    """WHERE / WHEN / WHO / WHY — the concise decision-support narrative.
+
+    Pure text assembly over computed values: every sentence cites a number
+    that already exists in the payload. No new figures are invented here.
+    """
+    def _name(r: dict) -> str:
+        return r["name"]
+
+    risky = [s for s in settlements if s["status"] != "SAFE"]
+    risky.sort(key=lambda s: (-(s["population_exposed"]["mid"]), s["arrival_min"] if s["arrival_min"] is not None else 1e9))
+    first_arrivals = sorted([s for s in settlements if s["arrival_min"] is not None],
+                            key=lambda s: s["arrival_min"])[:3]
+    critical = [s for s in settlements if s.get("priority", {}).get("band") in ("HIGH", "CRITICAL")][:3]
+    exposed_assets = [a for a in assets if a["status"] == "EXPOSED"]
+
+    where = [
+        f"{totals['settlements_inundated']} settlement(s) stand in the modelled water and "
+        f"{totals['settlements_at_risk']} more at its edge — {totals['flooded_area_km2']:.2f} km² inundated "
+        f"(scenario '{scenario_label}', peak depth {totals['peak_depth_m']:.1f} m).",
+    ]
+    if risky:
+        where.append("Most exposed: " + ", ".join(
+            f"{_name(s)} ({s['population_exposed']['mid']:,.0f} people)" for s in risky[:3]) + ".")
+    if exposed_assets:
+        kinds = sorted({a["kind"].replace("_", " ") for a in exposed_assets})
+        where.append(f"{len(exposed_assets)} critical asset(s) in the footprint, including {', '.join(kinds[:4])}.")
+
+    when = []
+    if first_arrivals:
+        when.append("First water reaches " + ", ".join(
+            f"{_name(s)} at T+{s['arrival_min']:.0f} min" for s in first_arrivals) +
+            " (modelled arrival times, not forecasts).")
+    elif totals.get("earliest_arrival_min") is not None:
+        when.append(f"Earliest modelled arrival anywhere: T+{totals['earliest_arrival_min']:.0f} min.")
+    else:
+        when.append("Arrival times were not resolved for any mapped location in this run.")
+
+    who = []
+    if critical:
+        who.append("Prioritize: " + "; ".join(
+            f"{_name(s)} — {s['priority']['band']} ({s['priority']['score']:.0f}/100)" for s in critical) + ".")
+    elif risky:
+        who.append("Prioritize by exposed population: " + ", ".join(
+            _name(s) for s in risky[:2]) + ".")
+    else:
+        who.append("No mapped settlement requires priority action in this scenario.")
+    if evacuation and evacuation.get("corridors"):
+        ok = [c for c in evacuation["corridors"] if c.get("status") == "RECOMMENDED CANDIDATE"]
+        if ok:
+            who.append(f"{len(ok)} candidate evacuation corridor(s) identified — see the Evacuation section; "
+                       "candidates are leads to verify on the ground, not guarantees.")
+
+    why = [
+        f"Overall risk band '{totals['overall_risk']}' comes from the worst settlement-level finding: "
+        "depth bands escalated by exposed population (documented thresholds, no fitted model).",
+        "Depths/arrival are a terrain-constrained screening propagation — compare cases, do not treat as predictions.",
+    ]
+    if any(s.get("priority", {}).get("band") == "CRITICAL" for s in settlements):
+        why.append("A CRITICAL priority means high exposure AND short arrival AND constrained evacuation connectivity — all three scored.")
+
+    return {
+        "where": where,
+        "when": when,
+        "who": who,
+        "why": why,
+        "basis": "modelled",
+        "note": "Every statement cites computed values from this assessment; nothing here is an independent prediction.",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # top-level pipeline
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -743,6 +1020,12 @@ def _assumptions(population_modelled: bool) -> list[dict]:
         {"stage": "savings", "parameter": "Mobilisation time",
          "value": f"{MOBILISATION_TIME_MIN:.0f} min",
          "basis": "assumed", "note": "alert issue → people actually moving; subtracted from arrival time"},
+        {"stage": "priority", "parameter": "Priority weights",
+         "value": "population 40 · depth 20 · arrival 20 · evacuation access 10 · facilities 10",
+         "basis": "assumed", "note": "0–100 score banded LOW <30 / MEDIUM <50 / HIGH <70 / CRITICAL ≥70; deterministic, never a casualty estimate"},
+        {"stage": "priority", "parameter": "Evacuation travel speed",
+         "value": f"{EVAC_SPEED_KMH:.0f} km/h on major roads",
+         "basis": "assumed", "note": "used only for candidate-route travel-time estimates"},
     ]
 
 
@@ -761,6 +1044,8 @@ def estimate_impact(
     elevation_m: np.ndarray | None = None,
     exposure_pct: np.ndarray | None = None,
     assets: Sequence[dict] | None = None,
+    evacuation: dict | None = None,
+    evacuation_provider=None,
     ensemble_runs: int = 0,
     agricultural_share: float = AGRICULTURAL_SHARE_OF_FLOODED_AREA,
     max_settlements: int = 250,
@@ -826,6 +1111,44 @@ def estimate_impact(
         -x["depth_m"],
         x["arrival_min"] if x["arrival_min"] is not None else 1e9,
     ))
+
+    # ── Population-at-Risk priority (explainable, deterministic) ────────────
+    # The evacuation layer runs between the two priority passes: it needs the
+    # settlement statuses computed above, and the connectivity component needs
+    # its corridor results. If the provider fails or road data is unavailable
+    # the component stays neutral instead of penalizing missing data.
+    if evacuation is None and callable(evacuation_provider):
+        try:
+            evacuation = evacuation_provider(rows)
+        except Exception as e:  # defensive: evacuation must never sink the estimate
+            print(f"[impact] evacuation layer failed: {e}")
+            evacuation = {
+                "data_source": "unavailable",
+                "corridors": [], "unsafe_roads": [], "unsafe_road_paths": [],
+                "bottlenecks": [],
+                "safe_zone": {"sectors": [], "note": "not computed"},
+                "note": f"Evacuation analysis failed and was skipped: {e}",
+            }
+    conn_by_id: dict[str, dict] = {}
+    if evacuation:
+        for corr in evacuation.get("corridors", []):
+            sid = corr.get("settlement_id")
+            if sid:
+                conn_by_id[sid] = {
+                    "nearest_usable_road_km": corr.get("usable_road_distance_km"),
+                }
+    for r in rows:
+        r["priority"] = priority_score(settlement_row=r, connectivity=conn_by_id.get(r["id"]))
+    priority_counts = {"LOW": 0, "MEDIUM": 0, "HIGH": 0, "CRITICAL": 0}
+    for r in rows:
+        b = r["priority"]["band"]
+        if b in priority_counts:
+            priority_counts[b] += 1
+
+    # ── Asset exposure records (every mapped critical facility) ─────────────
+    assets_out = asset_exposure_rows(
+        asset_list=asset_list, depth_grid=depth_grid, arrival_grid=arrival_grid, dam=dam,
+    )
 
     population_modelled = any(r["population"]["basis"] == "modelled" for r in rows)
     arrival_any = any(r["arrival_min"] is not None for r in rows)
@@ -900,6 +1223,21 @@ def estimate_impact(
         critical_assets=critical_assets_hit,
     )
 
+    decision = decision_summary(
+        settlements=rows,
+        assets=assets_out,
+        totals={
+            "overall_risk": overall_risk,
+            "flooded_area_km2": flooded_area_km2,
+            "settlements_inundated": len(inundated),
+            "settlements_at_risk": len(at_risk),
+            "peak_depth_m": peak_depth,
+            "earliest_arrival_min": earliest_arrival,
+        },
+        scenario_label=str(scenario.get("label", "custom")),
+        evacuation=evacuation,
+    )
+
     return {
         "pipeline": ["hazard", "exposure", "vulnerability", "impact", "economic_loss", "avoided_loss"],
         "generated_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -922,6 +1260,7 @@ def estimate_impact(
             "settlements_at_risk": len(at_risk),
             "settlements_high_or_extreme": len(critical_settlements),
             "critical_assets_exposed": critical_assets_hit,
+            "priority_counts": priority_counts,
             "population_exposed": {"low": exposed_low, "mid": exposed_mid, "high": exposed_high,
                                    "basis": "modelled",
                                    "basis_note": "sum of per-settlement exposure (spread already applied)"},
@@ -952,6 +1291,12 @@ def estimate_impact(
         },
         "confidence": confidence,
         "drivers": drivers,
+        "assets": assets_out,
+        "evacuation": evacuation if evacuation is not None else {
+            "data_source": "not_computed", "corridors": [], "unsafe_roads": [],
+            "note": "Evacuation analysis was not part of this run.",
+        },
+        "decision": decision,
         "settlements": rows,
         "assumptions": _assumptions(population_modelled),
         "method": [

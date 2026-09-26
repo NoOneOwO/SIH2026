@@ -1,0 +1,1325 @@
+[
+  {
+    "lat": 9.9986958,
+    "lon": 77.619808,
+    "source": "osm",
+    "kind": "town",
+    "name": "Andipatti Jakkampatty"
+  },
+  {
+    "lat": 9.9829254,
+    "lon": 77.5758361,
+    "source": "osm",
+    "kind": "village",
+    "name": "Unnamed village"
+  },
+  {
+    "lat": 9.9832213,
+    "lon": 77.5811147,
+    "source": "osm",
+    "kind": "village",
+    "name": "Unnamed village"
+  },
+  {
+    "lat": 9.9729506,
+    "lon": 77.5784969,
+    "source": "osm",
+    "kind": "village",
+    "name": "Unnamed village"
+  },
+  {
+    "lat": 9.9776844,
+    "lon": 77.5745058,
+    "source": "osm",
+    "kind": "village",
+    "name": "Unnamed village"
+  },
+  {
+    "lat": 9.9620033,
+    "lon": 77.5700426,
+    "source": "osm",
+    "kind": "village",
+    "name": "Unnamed village"
+  },
+  {
+    "lat": 9.958495,
+    "lon": 77.5603437,
+    "source": "osm",
+    "kind": "village",
+    "name": "Unnamed village"
+  },
+  {
+    "lat": 9.9821646,
+    "lon": 77.6092243,
+    "source": "osm",
+    "kind": "village",
+    "name": "Unnamed village"
+  },
+  {
+    "lat": 9.9665259,
+    "lon": 77.5884962,
+    "source": "osm",
+    "kind": "village",
+    "name": "Unnamed village"
+  },
+  {
+    "lat": 9.9686393,
+    "lon": 77.5939893,
+    "source": "osm",
+    "kind": "village",
+    "name": "Unnamed village"
+  },
+  {
+    "lat": 9.9677517,
+    "lon": 77.5994396,
+    "source": "osm",
+    "kind": "village",
+    "name": "Unnamed village"
+  },
+  {
+    "lat": 9.9555784,
+    "lon": 77.6107263,
+    "source": "osm",
+    "kind": "village",
+    "name": "Unnamed village"
+  },
+  {
+    "lat": 9.9527886,
+    "lon": 77.6004266,
+    "source": "osm",
+    "kind": "village",
+    "name": "Unnamed village"
+  },
+  {
+    "lat": 9.9376981,
+    "lon": 77.5995683,
+    "source": "osm",
+    "kind": "village",
+    "name": "Unnamed village"
+  },
+  {
+    "lat": 9.9237059,
+    "lon": 77.6102113,
+    "source": "osm",
+    "kind": "village",
+    "name": "Palayakkottai"
+  },
+  {
+    "lat": 9.9307232,
+    "lon": 77.5997829,
+    "source": "osm",
+    "kind": "village",
+    "name": "Unnamed village"
+  },
+  {
+    "lat": 9.9248896,
+    "lon": 77.6035165,
+    "source": "osm",
+    "kind": "village",
+    "name": "Jakkammalpatty"
+  },
+  {
+    "lat": 9.9155048,
+    "lon": 77.5959205,
+    "source": "osm",
+    "kind": "village",
+    "name": "Pallapatti"
+  },
+  {
+    "lat": 9.9290323,
+    "lon": 77.5785827,
+    "source": "osm",
+    "kind": "village",
+    "name": "Unnamed village"
+  },
+  {
+    "lat": 9.9325409,
+    "lon": 77.5917148,
+    "source": "osm",
+    "kind": "village",
+    "name": "Unnamed village"
+  },
+  {
+    "lat": 9.9351618,
+    "lon": 77.5868225,
+    "source": "osm",
+    "kind": "village",
+    "name": "Unnamed village"
+  },
+  {
+    "lat": 9.9456027,
+    "lon": 77.5583696,
+    "source": "osm",
+    "kind": "village",
+    "name": "Unnamed village"
+  },
+  {
+    "lat": 9.9383744,
+    "lon": 77.5648069,
+    "source": "osm",
+    "kind": "village",
+    "name": "Unnamed village"
+  },
+  {
+    "lat": 9.9112139,
+    "lon": 77.5644421,
+    "source": "osm",
+    "kind": "village",
+    "name": "Unnamed village"
+  },
+  {
+    "lat": 9.9253757,
+    "lon": 77.5880027,
+    "source": "osm",
+    "kind": "village",
+    "name": "Unnamed village"
+  },
+  {
+    "lat": 9.9243823,
+    "lon": 77.5774777,
+    "source": "osm",
+    "kind": "village",
+    "name": "Unnamed village"
+  },
+  {
+    "lat": 9.901554,
+    "lon": 77.5984525,
+    "source": "osm",
+    "kind": "village",
+    "name": "Theppampatti"
+  },
+  {
+    "lat": 9.9018288,
+    "lon": 77.6041174,
+    "source": "osm",
+    "kind": "village",
+    "name": "Rajakkapatti"
+  },
+  {
+    "lat": 9.9112985,
+    "lon": 77.6077008,
+    "source": "osm",
+    "kind": "village",
+    "name": "Ramakrishnapuram"
+  },
+  {
+    "lat": 9.9091213,
+    "lon": 77.6049113,
+    "source": "osm",
+    "kind": "village",
+    "name": "Alagapuri"
+  },
+  {
+    "lat": 9.9049149,
+    "lon": 77.6125502,
+    "source": "osm",
+    "kind": "village",
+    "name": "Avarampatti"
+  },
+  {
+    "lat": 9.9131374,
+    "lon": 77.6240515,
+    "source": "osm",
+    "kind": "village",
+    "name": "Rayavelur"
+  },
+  {
+    "lat": 9.9100091,
+    "lon": 77.6188159,
+    "source": "osm",
+    "kind": "village",
+    "name": "Kolinjipatti"
+  },
+  {
+    "lat": 9.9053641,
+    "lon": 77.6216108,
+    "source": "osm",
+    "kind": "village",
+    "name": "Palakkombai"
+  },
+  {
+    "lat": 9.9999725,
+    "lon": 77.6152562,
+    "source": "osm",
+    "kind": "clinic",
+    "name": "Premalatha Clinic"
+  },
+  {
+    "lat": 9.9995344,
+    "lon": 77.6181426,
+    "source": "osm",
+    "kind": "hospital",
+    "name": "Government Hospital, Andipatti"
+  },
+  {
+    "lat": 10.0010815,
+    "lon": 77.6190283,
+    "source": "osm",
+    "kind": "clinic",
+    "name": "Vaaruni Clinic"
+  },
+  {
+    "lat": 9.9981075,
+    "lon": 77.6225895,
+    "source": "osm",
+    "kind": "hospital",
+    "name": "Ayurveda Hospital"
+  },
+  {
+    "lat": 9.999816,
+    "lon": 77.624681,
+    "source": "osm",
+    "kind": "hospital",
+    "name": "Aravind Vision Centre"
+  },
+  {
+    "lat": 9.998983,
+    "lon": 77.620451,
+    "source": "osm",
+    "kind": "hospital",
+    "name": "Mathivanan Hospital"
+  },
+  {
+    "lat": 9.9997761,
+    "lon": 77.6175734,
+    "source": "osm",
+    "kind": "hospital",
+    "name": "Pazhaniammal Hospital"
+  },
+  {
+    "lat": 9.999199,
+    "lon": 77.620713,
+    "source": "osm",
+    "kind": "hospital",
+    "name": "Vijayalakshmi Hospital"
+  },
+  {
+    "lat": 10.0000308,
+    "lon": 77.6183347,
+    "source": "osm",
+    "kind": "clinic",
+    "name": "Vilvam Siddha Clinic"
+  },
+  {
+    "lat": 9.996164,
+    "lon": 77.615054,
+    "source": "osm",
+    "kind": "hospital",
+    "name": "Maruthi Hospital"
+  },
+  {
+    "lat": 9.9977825,
+    "lon": 77.6225217,
+    "source": "osm",
+    "kind": "hospital",
+    "name": "Ayurveda Hospaital"
+  },
+  {
+    "lat": 9.997965,
+    "lon": 77.622793,
+    "source": "osm",
+    "kind": "hospital",
+    "name": "Annai Seeniammal Hospital"
+  },
+  {
+    "lat": 9.9996406,
+    "lon": 77.6216588,
+    "source": "osm",
+    "kind": "clinic",
+    "name": "Dr. Vasagar Clinic"
+  },
+  {
+    "lat": 9.9997609,
+    "lon": 77.6176785,
+    "source": "osm",
+    "kind": "clinic",
+    "name": "Palaniyammal Child Speciality Clinic"
+  },
+  {
+    "lat": 9.9999901,
+    "lon": 77.6186895,
+    "source": "osm",
+    "kind": "clinic",
+    "name": "Shanthi Clinic"
+  },
+  {
+    "lat": 9.9988275,
+    "lon": 77.6163975,
+    "source": "osm",
+    "kind": "hospital",
+    "name": "Anbu Hospital"
+  },
+  {
+    "lat": 9.999276,
+    "lon": 77.619757,
+    "source": "osm",
+    "kind": "hospital",
+    "name": "Andal Nursing Home"
+  },
+  {
+    "lat": 9.9985356,
+    "lon": 77.6200939,
+    "source": "osm",
+    "kind": "hospital",
+    "name": "Asokan Hospital"
+  },
+  {
+    "lat": 9.8693803,
+    "lon": 77.6583409,
+    "source": "osm",
+    "kind": "village",
+    "name": "Unnamed village"
+  },
+  {
+    "lat": 9.9610205,
+    "lon": 77.6473439,
+    "source": "osm",
+    "kind": "village",
+    "name": "Unnamed village"
+  },
+  {
+    "lat": 9.9628909,
+    "lon": 77.6557445,
+    "source": "osm",
+    "kind": "village",
+    "name": "Unnamed village"
+  },
+  {
+    "lat": 9.9219463,
+    "lon": 77.6131242,
+    "source": "osm",
+    "kind": "hamlet",
+    "name": "Unnamed hamlet"
+  },
+  {
+    "lat": 9.9134016,
+    "lon": 77.6052761,
+    "source": "osm",
+    "kind": "hamlet",
+    "name": "Unnamed hamlet"
+  },
+  {
+    "lat": 9.9115363,
+    "lon": 77.5919133,
+    "source": "osm",
+    "kind": "hamlet",
+    "name": "Unnamed hamlet"
+  },
+  {
+    "lat": 9.9009093,
+    "lon": 77.6257896,
+    "source": "osm",
+    "kind": "hamlet",
+    "name": "Unnamed hamlet"
+  },
+  {
+    "lat": 10.0016661,
+    "lon": 77.617331,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 10.0003221,
+    "lon": 77.616639,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9635692,
+    "lon": 77.6507224,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9997261,
+    "lon": 77.6191688,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Madurai - Theni Road"
+  },
+  {
+    "lat": 10.0001096,
+    "lon": 77.6165218,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Madurai - Theni Road"
+  },
+  {
+    "lat": 9.9992403,
+    "lon": 77.6382245,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Madurai - Bodi Line"
+  },
+  {
+    "lat": 9.9953487,
+    "lon": 77.5950399,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Madurai - Bodi Line"
+  },
+  {
+    "lat": 9.9616299,
+    "lon": 77.5651419,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Kanniyappapillaipatty - G.Usilampatty - Gandamanur Road"
+  },
+  {
+    "lat": 9.9398815,
+    "lon": 77.5703654,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.924627,
+    "lon": 77.5793635,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.976776,
+    "lon": 77.5917478,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9657541,
+    "lon": 77.5860185,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Kanniyappapillaipatty - G.Usilampatty - Gandamanur Road"
+  },
+  {
+    "lat": 9.9686179,
+    "lon": 77.5961231,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Kanniyappapillaipatty - G.Usilampatty - Gandamanur Road"
+  },
+  {
+    "lat": 9.9946813,
+    "lon": 77.6137337,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Madurai - Bodi Line"
+  },
+  {
+    "lat": 9.9841794,
+    "lon": 77.6070653,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9916286,
+    "lon": 77.6106111,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9530807,
+    "lon": 77.6081013,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9635143,
+    "lon": 77.6065193,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9625672,
+    "lon": 77.6082488,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9607774,
+    "lon": 77.5999754,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Andipatty - Theppampatti - Velappar Kovil Road"
+  },
+  {
+    "lat": 9.9454116,
+    "lon": 77.6006751,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Andipatty - Theppampatti - Velappar Kovil Road"
+  },
+  {
+    "lat": 9.9833946,
+    "lon": 77.6109014,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Andipatty - Theppampatti - Velappar Kovil Road"
+  },
+  {
+    "lat": 9.9791188,
+    "lon": 77.6096517,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.985581,
+    "lon": 77.594036,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9844428,
+    "lon": 77.5866619,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9118196,
+    "lon": 77.6162121,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9051249,
+    "lon": 77.618128,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9118701,
+    "lon": 77.6086643,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9065031,
+    "lon": 77.6134682,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9014134,
+    "lon": 77.588933,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Sitharpatty Vilakku - Ganeshapuram - Ambasamuthiram Road"
+  },
+  {
+    "lat": 9.9094352,
+    "lon": 77.5925572,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Andipatty - Theppampatti - Velappar Kovil Road"
+  },
+  {
+    "lat": 9.8770448,
+    "lon": 77.5944633,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Andipatty - Theppampatti - Velappar Kovil Road"
+  },
+  {
+    "lat": 9.8633753,
+    "lon": 77.597664,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Andipatty - Theppampatti - Velappar Kovil Road"
+  },
+  {
+    "lat": 9.8992411,
+    "lon": 77.5927238,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Sitharpatty Vilakku - Ganeshapuram - Ambasamuthiram Road"
+  },
+  {
+    "lat": 9.9084582,
+    "lon": 77.5929979,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Andipatty - Theppampatti - Velappar Kovil Road"
+  },
+  {
+    "lat": 9.9244271,
+    "lon": 77.6048469,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9066575,
+    "lon": 77.5736091,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Sitharpatty Vilakku - Ganeshapuram - Ambasamuthiram Road"
+  },
+  {
+    "lat": 9.9095414,
+    "lon": 77.5727641,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.937911,
+    "lon": 77.556789,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Kanniyappapillaipatty - G.Usilampatty - Gandamanur Road"
+  },
+  {
+    "lat": 9.9946147,
+    "lon": 77.6158182,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Madurai - Bodi Line"
+  },
+  {
+    "lat": 9.993578,
+    "lon": 77.6142396,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Andipatty - Theppampatti - Velappar Kovil Road"
+  },
+  {
+    "lat": 9.9972772,
+    "lon": 77.6307361,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Madurai - Bodi Line"
+  },
+  {
+    "lat": 9.9967909,
+    "lon": 77.6287295,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Madurai - Bodi Line"
+  },
+  {
+    "lat": 9.9967564,
+    "lon": 77.6287403,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9954811,
+    "lon": 77.6239322,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9970762,
+    "lon": 77.6203757,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 10.0011546,
+    "lon": 77.6211117,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9990533,
+    "lon": 77.6210072,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Madurai - Theni Road"
+  },
+  {
+    "lat": 9.9937974,
+    "lon": 77.6216198,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9934516,
+    "lon": 77.6215998,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9948847,
+    "lon": 77.6218564,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Madurai - Bodi Line"
+  },
+  {
+    "lat": 9.9949559,
+    "lon": 77.6218424,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9952263,
+    "lon": 77.6217889,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9951506,
+    "lon": 77.621804,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9979445,
+    "lon": 77.6332815,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Madurai - Bodi Line"
+  },
+  {
+    "lat": 9.9945477,
+    "lon": 77.6179743,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Madurai - Bodi Line"
+  },
+  {
+    "lat": 9.9950865,
+    "lon": 77.6026417,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Madurai - Bodi Line"
+  },
+  {
+    "lat": 9.9997757,
+    "lon": 77.6026368,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9779725,
+    "lon": 77.6251234,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.997704,
+    "lon": 77.6192355,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9980787,
+    "lon": 77.6193186,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9966747,
+    "lon": 77.6189402,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9505718,
+    "lon": 77.5565505,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9553263,
+    "lon": 77.5542171,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8809952,
+    "lon": 77.5929223,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9456806,
+    "lon": 77.5569461,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9407101,
+    "lon": 77.5570096,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9448913,
+    "lon": 77.5570899,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9236119,
+    "lon": 77.5654505,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9224547,
+    "lon": 77.5658773,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9560244,
+    "lon": 77.5538585,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9572928,
+    "lon": 77.553357,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9732596,
+    "lon": 77.5967712,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9759781,
+    "lon": 77.6063195,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9723223,
+    "lon": 77.6060179,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9820172,
+    "lon": 77.5734781,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9687795,
+    "lon": 77.5588733,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9325411,
+    "lon": 77.5778962,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9296898,
+    "lon": 77.5795938,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8920114,
+    "lon": 77.5684283,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9026442,
+    "lon": 77.5729137,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8977324,
+    "lon": 77.5886024,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8986997,
+    "lon": 77.592646,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9159643,
+    "lon": 77.5972661,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9154517,
+    "lon": 77.597001,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9214095,
+    "lon": 77.6022188,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9224097,
+    "lon": 77.60335,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9165077,
+    "lon": 77.613085,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9208952,
+    "lon": 77.609511,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9199383,
+    "lon": 77.6093777,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.905623,
+    "lon": 77.6129191,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9055642,
+    "lon": 77.6125133,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9025455,
+    "lon": 77.6117057,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9039384,
+    "lon": 77.6156661,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9026376,
+    "lon": 77.6197577,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8960974,
+    "lon": 77.6266672,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9455046,
+    "lon": 77.5887726,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9356268,
+    "lon": 77.605316,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9352557,
+    "lon": 77.6055184,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9346342,
+    "lon": 77.6055151,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9349331,
+    "lon": 77.6056033,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9533868,
+    "lon": 77.5978798,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9544759,
+    "lon": 77.598373,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9540085,
+    "lon": 77.5975232,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9619146,
+    "lon": 77.5961912,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9775209,
+    "lon": 77.5850425,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9771144,
+    "lon": 77.5895818,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9795821,
+    "lon": 77.5799127,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9725852,
+    "lon": 77.6078147,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.952996,
+    "lon": 77.6104785,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9527637,
+    "lon": 77.6113113,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9814712,
+    "lon": 77.6100845,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9947872,
+    "lon": 77.6158402,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9946593,
+    "lon": 77.6179665,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9919794,
+    "lon": 77.6112122,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9927183,
+    "lon": 77.6124741,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9931446,
+    "lon": 77.6122793,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9960783,
+    "lon": 77.6147782,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9949839,
+    "lon": 77.6138667,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9972501,
+    "lon": 77.6150722,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9989781,
+    "lon": 77.6165331,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9954934,
+    "lon": 77.6168689,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9876761,
+    "lon": 77.64288,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.983412,
+    "lon": 77.6461003,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9745713,
+    "lon": 77.6469849,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9509283,
+    "lon": 77.6547265,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.937848,
+    "lon": 77.6589595,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9321057,
+    "lon": 77.6591483,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9679972,
+    "lon": 77.608055,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.9688311,
+    "lon": 77.6081336,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  }
+]

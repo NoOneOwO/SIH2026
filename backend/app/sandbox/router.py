@@ -22,7 +22,7 @@ from app.sandbox import explainer as expl
 from app.sandbox import scenarios as agent
 from app.sandbox.dam_registry import get_dam
 from app.sandbox.engine import run_scenario
-from app.sandbox.impact_run import build_estimate
+from app.sandbox.impact_run import build_estimate, _evacuation_provider
 from app.sandbox.response import hydrograph_payload as _hydrograph_payload
 from app.sandbox.response import summarize as _summarize
 from app.sandbox.schemas import (
@@ -123,11 +123,16 @@ async def run_simulation(body: RunRequest):
         elevation=elev, cell_m=cell_m, bbox=bbox,
         depth_m=result.maxdepth_m, arrival_min=result.arrival_min,
         assets=exposed, provenance=provenance,
-        dam={"name": meta["name"], "lat": meta["lat"], "lon": meta["lon"]},
+        dam={"id": body.dam_id, "name": meta["name"], "lat": meta["lat"], "lon": meta["lon"]},
         scenario=scenario.model_dump(), engine="sandbox-diffusive-screening-v1",
+        evacuation_provider=_evacuation_provider(
+            body.dam_id, {"name": meta["name"], "lat": meta["lat"], "lon": meta["lon"]},
+            elev, cell_m, bbox, result.maxdepth_m, result.arrival_min,
+        ),
     )
-    return {
+    return_payload = {
         "mode": "REAL COMPUTED SIMULATION",
+        "run_id": None,
         "dam_id": body.dam_id,
         "dam_name": meta["name"],
         "terrain": meta["terrain"],
@@ -175,6 +180,26 @@ async def run_simulation(body: RunRequest):
             "maxdepth_m_b64": _b64(result.maxdepth_m),
         },
     }
+    # Record the completed run (alerts/reports can now reference it by id).
+    try:
+        from app.runledger import record_run
+
+        row = record_run(
+            dam_id=body.dam_id,
+            dam_name=meta["name"],
+            case=str(scenario.label),
+            mode=return_payload["mode"],
+            summary=summary,
+            engine="sandbox-diffusive-screening-v2",
+            scenario=scenario.model_dump(),
+            grids_present=True,
+            run_kind="sandbox",
+        )
+        if row:
+            return_payload["run_id"] = row["id"]
+    except Exception as e:  # ledger must never break a run
+        print(f"[runledger] record failed: {e}")
+    return return_payload
 
 
 @router.post("/ensemble", dependencies=[Depends(require_role("analyst"))])
@@ -250,9 +275,13 @@ async def run_ensemble(body: EnsembleRequest):
         elevation=w_elev, cell_m=w_cell, bbox=w_bbox,
         depth_m=w_result.maxdepth_m, arrival_min=w_result.arrival_min,
         assets=w_assets, provenance=w_prov,
-        dam={"name": meta["name"], "lat": lat, "lon": lon},
+        dam={"id": body.dam_id, "name": meta["name"], "lat": lat, "lon": lon},
         scenario=w_scenario.model_dump(), engine="sandbox-diffusive-screening-v1",
         exposure_pct=agg["exposure_pct"], ensemble_runs=len(runs),
+        evacuation_provider=_evacuation_provider(
+            body.dam_id, {"name": meta["name"], "lat": lat, "lon": lon},
+            w_elev, w_cell, w_bbox, w_result.maxdepth_m, w_result.arrival_min,
+        ),
     )
 
     payload_runs = [{"label": r["label"], "summary": r["summary"]} for r in runs]

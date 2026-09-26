@@ -27,6 +27,8 @@ interface SandboxPanelProps {
   onFlood: (f: FloodOverlay | null) => void;
   /** Leave the simulation view (back to the globe). */
   onExit: () => void;
+  /** Reports whether a run is in flight — the terrain slowly orbits while true. */
+  onBusyChange?: (busy: boolean) => void;
 }
 
 function b64ToF32(b64: string): Float32Array {
@@ -49,7 +51,7 @@ const DEFAULTS = {
   duration_min: 180,
 };
 
-export default function SandboxPanel({ dam, autoRun, onFlood, onExit }: SandboxPanelProps) {
+export default function SandboxPanel({ dam, autoRun, onFlood, onExit, onBusyChange }: SandboxPanelProps) {
   const [params, setParams] = useState({ ...DEFAULTS, breach_severity: 'major' as string });
   const [cases, setCases] = useState<any | null>(null);
   const [activeCase, setActiveCase] = useState<'best' | 'likely' | 'worst' | 'custom'>('likely');
@@ -66,6 +68,11 @@ export default function SandboxPanel({ dam, autoRun, onFlood, onExit }: SandboxP
   const [speed, setSpeed] = useState(8); // sim-minutes per second
   // True when the last failure was "nothing is listening on /api/v1".
   const [backendDown, setBackendDown] = useState(false);
+  // Elapsed seconds for the honest "still computing" readout during a run.
+  const [elapsed, setElapsed] = useState(0);
+  // Flips true once playback reaches the end so results scroll into view.
+  const resultsRef = useRef<HTMLDivElement | null>(null);
+  const justFinishedRef = useRef(false);
   const gridsRef = useRef<{ arrival: Float32Array; depth: Float32Array; rows: number; cols: number; key: string; bbox?: [number, number, number, number] } | null>(null);
   const maxT = run?.summary?.sim_minutes ?? 180;
 
@@ -74,6 +81,23 @@ export default function SandboxPanel({ dam, autoRun, onFlood, onExit }: SandboxP
     setBackendDown(down);
     setError(down ? 'The screening model runs on the backend, which is not answering.' : String(e?.message ?? e));
   };
+
+  // Terrain ambience: the mesh slowly orbits whenever a request is in flight.
+  useEffect(() => {
+    onBusyChange?.(!!busy);
+  }, [busy, onBusyChange]);
+
+  // Elapsed-seconds counter while the backend computes (honest: one request,
+  // no fake stage progress — just how long it has actually been running).
+  useEffect(() => {
+    if (!busy) {
+      setElapsed(0);
+      return;
+    }
+    const started = Date.now();
+    const id = setInterval(() => setElapsed(Math.round((Date.now() - started) / 1000)), 500);
+    return () => clearInterval(id);
+  }, [busy]);
 
   // Deterministic demo entry: loads the precomputed Tehri bundle (no backend,
   // no API keys). Offered only for Tehri, which is the dam it was built for.
@@ -122,6 +146,18 @@ export default function SandboxPanel({ dam, autoRun, onFlood, onExit }: SandboxP
     }, 100);
     return () => clearInterval(id);
   }, [playing, speed, maxT]);
+
+  // When the propagation animation completes, bring the results into view.
+  useEffect(() => {
+    if (playing || !run) {
+      justFinishedRef.current = false;
+      return;
+    }
+    if (tMin >= maxT && !justFinishedRef.current) {
+      justFinishedRef.current = true;
+      resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [playing, tMin, maxT, run]);
 
   useEffect(() => {
     const g = gridsRef.current;
@@ -300,6 +336,7 @@ export default function SandboxPanel({ dam, autoRun, onFlood, onExit }: SandboxP
               </p>
               <p className="text-[10px] text-cmd-muted">
                 Breach hydrograph → terrain-constrained inundation → settlement sampling
+                {elapsed > 0 && <span className="ml-2 font-mono font-bold text-cmd-ink/80">{elapsed}s elapsed</span>}
               </p>
             </div>
           </div>
@@ -341,6 +378,19 @@ export default function SandboxPanel({ dam, autoRun, onFlood, onExit }: SandboxP
             {' '}{run.summary?.timesteps ?? 0} checkpoints over T+{Math.round(run.summary?.sim_minutes ?? 0)} min.
             {run.demo_mode ? ` ${run.demo_mode}` : ''}
           </p>
+        )}
+
+        {/* Full computed decision-support results live in the impact workspace. */}
+        {run && !busy && !error && (
+          <button
+            onClick={() => navigate(`/impact?dam=${encodeURIComponent(dam.id)}&case=${activeCase === 'custom' ? 'likely' : activeCase}`)}
+            className="mb-3 w-full rounded-xl border border-cmd-teal/40 bg-cmd-teal/[0.08] px-3 py-2.5 text-left transition-colors hover:bg-cmd-teal/[0.14]"
+          >
+            <span className="block text-[12px] font-bold text-cmd-teal">Open the decision-support dashboard →</span>
+            <span className="mt-0.5 block text-[10.5px] leading-snug text-cmd-muted">
+              Priority locations, asset exposure, evacuation candidates and the WHERE/WHEN/WHO/WHY summary for this dam.
+            </span>
+          </button>
         )}
 
         {/* ── Scenario inputs ── */}
@@ -432,6 +482,27 @@ export default function SandboxPanel({ dam, autoRun, onFlood, onExit }: SandboxP
                 className="flex-1 h-1.5 accent-[#65BFA9]" />
               <span className="text-[11px] font-mono font-bold text-cmd-ink/90 w-14 text-right">T+{Math.round(tMin)}m</span>
             </div>
+            {/* Modelled timeline ticks: quick jumps every few sim-minutes.
+                Timestamps come from the sim duration (maxT), not invented ones. */}
+            {(() => {
+              const step = maxT <= 30 ? 5 : maxT <= 90 ? 10 : 30;
+              const ticks: number[] = [];
+              for (let t = 0; t <= maxT; t += step) ticks.push(t);
+              if (ticks[ticks.length - 1] < maxT) ticks.push(Math.round(maxT));
+              return (
+                <div className="mb-1.5 flex items-center gap-1">
+                  {ticks.map((t) => (
+                    <button key={t} onClick={() => { setPlaying(false); setTMin(t); }}
+                      title={`Jump to T+${t} min (modelled)`}
+                      className={`rounded px-1.5 py-0.5 text-[9.5px] font-bold transition-colors ${
+                        Math.abs(tMin - t) < step / 2 ? 'bg-cmd-teal/90 text-[#071018]' : 'bg-white/[0.06] text-cmd-muted hover:text-cmd-ink'
+                      }`}>
+                      T+{t}
+                    </button>
+                  ))}
+                </div>
+              );
+ })()}
             <div className="flex items-center gap-2">
               <span className="text-[10px] text-cmd-muted">Speed:</span>
               {[2, 8, 30].map((s) => (
@@ -478,7 +549,7 @@ export default function SandboxPanel({ dam, autoRun, onFlood, onExit }: SandboxP
           const CC = 2 * Math.PI * RR;
           const timelineMax = Math.max(maxT, firstArr ?? 0, 1);
           return (
-            <div className="mb-3 rounded-xl border border-cmd-border overflow-hidden">
+            <div className="mb-3 rounded-xl border border-cmd-border overflow-hidden" ref={resultsRef}>
               <div className="px-3 py-2.5 bg-cmd-panel2 flex items-center gap-3">
                 <svg width="60" height="60" viewBox="0 0 72 72" className="shrink-0">
                   <circle cx="36" cy="36" r={RR} fill="none" stroke="#1E2E38" strokeWidth="8" />

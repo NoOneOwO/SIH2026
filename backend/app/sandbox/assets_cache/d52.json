@@ -1,0 +1,1028 @@
+[
+  {
+    "lat": 9.8540061,
+    "lon": 76.9446486,
+    "source": "osm",
+    "kind": "town",
+    "name": "Painavu",
+    "state": "kerala"
+  },
+  {
+    "lat": 9.8497872,
+    "lon": 76.9797914,
+    "source": "osm",
+    "kind": "village",
+    "name": "Idukki",
+    "state": "kerala"
+  },
+  {
+    "lat": 9.8581974,
+    "lon": 76.9618039,
+    "source": "osm",
+    "kind": "town",
+    "name": "Cheruthoni",
+    "state": "kerala"
+  },
+  {
+    "lat": 9.8799723,
+    "lon": 76.9683736,
+    "source": "osm",
+    "kind": "village",
+    "name": "Thadiyambadu",
+    "state": "kerala"
+  },
+  {
+    "lat": 9.892674,
+    "lon": 76.9721945,
+    "source": "osm",
+    "kind": "village",
+    "name": "Karimban"
+  },
+  {
+    "lat": 9.8852768,
+    "lon": 77.0231474,
+    "source": "osm",
+    "kind": "village",
+    "name": "Rajamudi"
+  },
+  {
+    "lat": 9.8564465,
+    "lon": 76.9875977,
+    "source": "osm",
+    "kind": "village",
+    "name": "Mariyapuram"
+  },
+  {
+    "lat": 9.8413698,
+    "lon": 77.0350532,
+    "source": "osm",
+    "kind": "town",
+    "name": "Thankamani"
+  },
+  {
+    "lat": 9.8567408,
+    "lon": 77.0046936,
+    "source": "osm",
+    "kind": "village",
+    "name": "Pandippara"
+  },
+  {
+    "lat": 9.8967543,
+    "lon": 76.9693574,
+    "source": "osm",
+    "kind": "school",
+    "name": "St. Thomas public school playground"
+  },
+  {
+    "lat": 9.897357,
+    "lon": 76.9722231,
+    "source": "osm",
+    "kind": "school",
+    "name": "St. Mary's School"
+  },
+  {
+    "lat": 9.8977369,
+    "lon": 76.9697364,
+    "source": "osm",
+    "kind": "school",
+    "name": "St.Thomas Public School"
+  },
+  {
+    "lat": 9.8237286,
+    "lon": 77.0263418,
+    "source": "osm",
+    "kind": "school",
+    "name": "Calvary School Ground"
+  },
+  {
+    "lat": 9.8856948,
+    "lon": 77.0038708,
+    "source": "osm",
+    "kind": "village",
+    "name": "Upputhode"
+  },
+  {
+    "lat": 9.886373,
+    "lon": 76.950775,
+    "source": "osm",
+    "kind": "hospital",
+    "name": "Primary Health Centre, Vazhathope"
+  },
+  {
+    "lat": 9.8747128,
+    "lon": 76.959695,
+    "source": "osm",
+    "kind": "village",
+    "name": "Vazhathope"
+  },
+  {
+    "lat": 9.7621197,
+    "lon": 76.9857254,
+    "source": "osm",
+    "kind": "hamlet",
+    "name": "Kannampady"
+  },
+  {
+    "lat": 9.8313617,
+    "lon": 77.0484741,
+    "source": "osm",
+    "kind": "village",
+    "name": "Kamakshi"
+  },
+  {
+    "lat": 9.8399236,
+    "lon": 76.9975223,
+    "source": "osm",
+    "kind": "village",
+    "name": "Narakakkanam"
+  },
+  {
+    "lat": 9.8226898,
+    "lon": 77.0259993,
+    "source": "osm",
+    "kind": "village",
+    "name": "Calvary Mount"
+  },
+  {
+    "lat": 9.8419492,
+    "lon": 77.036111,
+    "source": "osm",
+    "kind": "hospital",
+    "name": "Govt. Ayurveda dispensary Kamakshy"
+  },
+  {
+    "lat": 9.8683969,
+    "lon": 76.9527104,
+    "source": "osm",
+    "kind": "hamlet",
+    "name": "Thannikandam"
+  },
+  {
+    "lat": 9.8646541,
+    "lon": 76.9691634,
+    "source": "osm",
+    "kind": "clinic",
+    "name": "Primary Health Care, Kuthirakkallu"
+  },
+  {
+    "lat": 9.8842005,
+    "lon": 76.9794727,
+    "source": "osm",
+    "kind": "clinic",
+    "name": "Government Homeo Subcentre, Vimalagiri"
+  },
+  {
+    "lat": 9.8838545,
+    "lon": 77.0069335,
+    "source": "osm",
+    "kind": "clinic",
+    "name": "Government Homeo Subcentre, Upputhodu"
+  },
+  {
+    "lat": 9.8325993,
+    "lon": 77.0438521,
+    "source": "osm",
+    "kind": "hospital",
+    "name": "Family health center Kamakshy"
+  },
+  {
+    "lat": 9.8635862,
+    "lon": 76.9560683,
+    "source": "osm",
+    "kind": "school",
+    "name": "Girijyothi CMI Public School"
+  },
+  {
+    "lat": 9.8298806,
+    "lon": 77.0504514,
+    "source": "osm",
+    "kind": "hospital",
+    "name": "Family Health Centre Kamakshy"
+  },
+  {
+    "lat": 9.8507871,
+    "lon": 76.9399881,
+    "source": "osm",
+    "kind": "hospital",
+    "name": "General Medical Centre Idukki"
+  },
+  {
+    "lat": 9.8911357,
+    "lon": 77.0092779,
+    "source": "osm",
+    "kind": "clinic",
+    "name": "Community Health Centre Vathikudy"
+  },
+  {
+    "lat": 9.848388,
+    "lon": 76.960646,
+    "source": "osm",
+    "kind": "hospital",
+    "name": "District Hospital Idukki"
+  },
+  {
+    "lat": 9.855502,
+    "lon": 76.947099,
+    "source": "osm",
+    "kind": "hospital",
+    "name": "Government Ayurveda Dispensary, Painavu"
+  },
+  {
+    "lat": 9.845438,
+    "lon": 76.9412863,
+    "source": "osm",
+    "kind": "college",
+    "name": "Model Polytechnic College (IHRD), Painavu"
+  },
+  {
+    "lat": 9.761068,
+    "lon": 76.9906769,
+    "source": "osm",
+    "kind": "hamlet",
+    "name": "Punnapara"
+  },
+  {
+    "lat": 9.8857574,
+    "lon": 76.9673599,
+    "source": "osm",
+    "kind": "hamlet",
+    "name": "Ashoka Kavala"
+  },
+  {
+    "lat": 9.8526371,
+    "lon": 76.970369,
+    "source": "osm",
+    "kind": "hamlet",
+    "name": "Alinchuvadu"
+  },
+  {
+    "lat": 9.8187226,
+    "lon": 77.0252887,
+    "source": "osm",
+    "kind": "hamlet",
+    "name": "10th Mile"
+  },
+  {
+    "lat": 9.8282991,
+    "lon": 77.0125596,
+    "source": "osm",
+    "kind": "hamlet",
+    "name": "Double Cutting"
+  },
+  {
+    "lat": 9.8274087,
+    "lon": 77.0327825,
+    "source": "osm",
+    "kind": "hamlet",
+    "name": "Koottakkallu"
+  },
+  {
+    "lat": 9.8440716,
+    "lon": 77.018246,
+    "source": "osm",
+    "kind": "hamlet",
+    "name": "Eettikavala"
+  },
+  {
+    "lat": 9.8094891,
+    "lon": 77.0446768,
+    "source": "osm",
+    "kind": "hamlet",
+    "name": "8th Mile"
+  },
+  {
+    "lat": 9.8195256,
+    "lon": 77.0514507,
+    "source": "osm",
+    "kind": "hamlet",
+    "name": "Carmelcity"
+  },
+  {
+    "lat": 9.8526168,
+    "lon": 76.9963718,
+    "source": "osm",
+    "kind": "hamlet",
+    "name": "Millumpady"
+  },
+  {
+    "lat": 9.8517501,
+    "lon": 76.9393428,
+    "source": "osm",
+    "kind": "college",
+    "name": "Government Engineering College, Idukki"
+  },
+  {
+    "lat": 9.8809488,
+    "lon": 76.9731432,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8837693,
+    "lon": 76.9791548,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8789811,
+    "lon": 76.970398,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8989026,
+    "lon": 76.9745705,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8636934,
+    "lon": 76.9688357,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8974393,
+    "lon": 76.9697487,
+    "source": "osm",
+    "kind": "school",
+    "name": "St. Thomas Public school"
+  },
+  {
+    "lat": 9.896751,
+    "lon": 76.9693657,
+    "source": "osm",
+    "kind": "school",
+    "name": "St. Thomas Public School playground"
+  },
+  {
+    "lat": 9.8973103,
+    "lon": 76.9722248,
+    "source": "osm",
+    "kind": "school",
+    "name": "St Marys Ups Manippara"
+  },
+  {
+    "lat": 9.8457777,
+    "lon": 76.9411597,
+    "source": "osm",
+    "kind": "college",
+    "name": "Model Polytechnic College (IHRD), Painavu"
+  },
+  {
+    "lat": 9.8911113,
+    "lon": 77.0093336,
+    "source": "osm",
+    "kind": "hospital",
+    "name": "Community Health Centre Vathikudy"
+  },
+  {
+    "lat": 9.8891078,
+    "lon": 77.000326,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8872399,
+    "lon": 76.9638666,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8876439,
+    "lon": 77.0005145,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8876422,
+    "lon": 77.0187135,
+    "source": "osm",
+    "kind": "school",
+    "name": "De Paul Public School Rajamudi"
+  },
+  {
+    "lat": 9.8797663,
+    "lon": 77.0165989,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.883831,
+    "lon": 77.0092118,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.878959,
+    "lon": 77.018102,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8836553,
+    "lon": 77.0005818,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.891335,
+    "lon": 77.0136873,
+    "source": "osm",
+    "kind": "school",
+    "name": "Government Higher Secondary School Pathinaramkandam"
+  },
+  {
+    "lat": 9.8937434,
+    "lon": 76.9920298,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8827051,
+    "lon": 76.9439272,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8829508,
+    "lon": 76.9435555,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8585798,
+    "lon": 76.9618387,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Idukki-Neriyamangalam road"
+  },
+  {
+    "lat": 9.8857497,
+    "lon": 76.9671745,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8548562,
+    "lon": 76.9395099,
+    "source": "osm",
+    "kind": "school",
+    "name": "Ekalavya Model Residential School"
+  },
+  {
+    "lat": 9.8745334,
+    "lon": 76.9603673,
+    "source": "osm",
+    "kind": "school",
+    "name": "St George Up school Vazhathope"
+  },
+  {
+    "lat": 9.8733809,
+    "lon": 76.9622864,
+    "source": "osm",
+    "kind": "school",
+    "name": "school ground"
+  },
+  {
+    "lat": 9.8769522,
+    "lon": 76.9560685,
+    "source": "osm",
+    "kind": "school",
+    "name": "Government Lp school Vazhathoppu"
+  },
+  {
+    "lat": 9.8898186,
+    "lon": 76.9453157,
+    "source": "osm",
+    "kind": "school",
+    "name": "gov school maniyarnkudy"
+  },
+  {
+    "lat": 9.8416592,
+    "lon": 77.0124321,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8524077,
+    "lon": 76.9964293,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Muvattupuzha - Theni Road"
+  },
+  {
+    "lat": 9.8417349,
+    "lon": 77.0128634,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8464003,
+    "lon": 76.9990724,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8482046,
+    "lon": 77.0414685,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8465302,
+    "lon": 76.9988,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8424783,
+    "lon": 77.0078817,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8444431,
+    "lon": 77.0014132,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8433424,
+    "lon": 77.0105975,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8734453,
+    "lon": 76.9617079,
+    "source": "osm",
+    "kind": "school",
+    "name": "Saint George Public School Vazhathoppe"
+  },
+  {
+    "lat": 9.8611999,
+    "lon": 76.9661044,
+    "source": "osm",
+    "kind": "school",
+    "name": "SM Lower Primary School Idukki"
+  },
+  {
+    "lat": 9.8627386,
+    "lon": 76.9599105,
+    "source": "osm",
+    "kind": "school",
+    "name": "Government Vocational Higher Secondary School, Vazhathoppe"
+  },
+  {
+    "lat": 9.8465908,
+    "lon": 76.9823822,
+    "source": "osm",
+    "kind": "school",
+    "name": "NewMan Lower Primary School, Idukki"
+  },
+  {
+    "lat": 9.8572493,
+    "lon": 76.9872183,
+    "source": "osm",
+    "kind": "school",
+    "name": "St Mary's Higher Secondary School, Mariyapuram"
+  },
+  {
+    "lat": 9.8556531,
+    "lon": 77.0060551,
+    "source": "osm",
+    "kind": "school",
+    "name": "St Joseph's Upper Primary School, Pandipara"
+  },
+  {
+    "lat": 9.8666211,
+    "lon": 77.0213236,
+    "source": "osm",
+    "kind": "school",
+    "name": "Government Lower Primary School, Karikkinmettu"
+  },
+  {
+    "lat": 9.8673237,
+    "lon": 77.0424512,
+    "source": "osm",
+    "kind": "school",
+    "name": "Government Lower Primary School Kiliyarkandam"
+  },
+  {
+    "lat": 9.823458,
+    "lon": 77.0281413,
+    "source": "osm",
+    "kind": "school",
+    "name": "Calvary Lower Primary School, Calvarymount"
+  },
+  {
+    "lat": 9.840575,
+    "lon": 77.0342706,
+    "source": "osm",
+    "kind": "school",
+    "name": "ST Lower Primary School Thankamany"
+  },
+  {
+    "lat": 9.8852401,
+    "lon": 77.0241499,
+    "source": "osm",
+    "kind": "school",
+    "name": "Christ The king Lower Primary School Rajamudi"
+  },
+  {
+    "lat": 9.8827214,
+    "lon": 77.0092217,
+    "source": "osm",
+    "kind": "school",
+    "name": "Government Upper Primary school, Upputhodu"
+  },
+  {
+    "lat": 9.8838231,
+    "lon": 77.0022167,
+    "source": "osm",
+    "kind": "school",
+    "name": "St Joseph's High School, Upputhodu"
+  },
+  {
+    "lat": 9.9014437,
+    "lon": 76.9794652,
+    "source": "osm",
+    "kind": "school",
+    "name": "Government Lower Primary School, Kochukarimban"
+  },
+  {
+    "lat": 9.8787479,
+    "lon": 76.9551267,
+    "source": "osm",
+    "kind": "school",
+    "name": "Kcws English Medium School Lakshamkavala"
+  },
+  {
+    "lat": 9.8903352,
+    "lon": 76.9455631,
+    "source": "osm",
+    "kind": "school",
+    "name": "Government Vhss Maniyarankudy"
+  },
+  {
+    "lat": 9.8822959,
+    "lon": 76.9733062,
+    "source": "osm",
+    "kind": "school",
+    "name": "Government Lower Primary School, Kuthirakallu"
+  },
+  {
+    "lat": 9.8866217,
+    "lon": 76.9784067,
+    "source": "osm",
+    "kind": "school",
+    "name": "Vimalagiri High School, Upputhodu"
+  },
+  {
+    "lat": 9.761076,
+    "lon": 76.9930965,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.7690496,
+    "lon": 76.9937154,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.7810314,
+    "lon": 76.9979539,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.77927,
+    "lon": 76.9948481,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.7685343,
+    "lon": 76.9938484,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.7660461,
+    "lon": 76.9956423,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.7647851,
+    "lon": 76.9950108,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.7619609,
+    "lon": 76.9969504,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.7798492,
+    "lon": 76.9997076,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8205314,
+    "lon": 77.0505011,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8558291,
+    "lon": 76.9476823,
+    "source": "osm",
+    "kind": "school",
+    "name": "Government Upper Primary School Ground"
+  },
+  {
+    "lat": 9.8430445,
+    "lon": 77.0349178,
+    "source": "osm",
+    "kind": "hospital",
+    "name": "Government Homeo Dispensary, Kamakshy"
+  },
+  {
+    "lat": 9.8379031,
+    "lon": 76.9946283,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8553539,
+    "lon": 76.9888642,
+    "source": "osm",
+    "kind": "hospital",
+    "name": "Family Health Centre, Mariyapuram"
+  },
+  {
+    "lat": 9.840012,
+    "lon": 77.0347105,
+    "source": "osm",
+    "kind": "police_station",
+    "name": "Police Station,Thankamany"
+  },
+  {
+    "lat": 9.8235048,
+    "lon": 77.0256337,
+    "source": "osm",
+    "kind": "school",
+    "name": "Calvary Mount School"
+  },
+  {
+    "lat": 9.8340723,
+    "lon": 77.0424311,
+    "source": "osm",
+    "kind": "school",
+    "name": "Government High School Thankamany, kamashy"
+  },
+  {
+    "lat": 9.8183496,
+    "lon": 77.0259362,
+    "source": "osm",
+    "kind": "clinic",
+    "name": "Goverment Clinic Calvary Mount"
+  },
+  {
+    "lat": 9.8292072,
+    "lon": 77.0125301,
+    "source": "osm",
+    "kind": "clinic",
+    "name": "Government Subcentre, Double Cutting"
+  },
+  {
+    "lat": 9.8284521,
+    "lon": 77.0148233,
+    "source": "osm",
+    "kind": "school",
+    "name": "Government Lower Primary School, Double Cutting"
+  },
+  {
+    "lat": 9.8367524,
+    "lon": 77.0138195,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8979896,
+    "lon": 76.9750902,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8859685,
+    "lon": 76.941582,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8657335,
+    "lon": 76.9632993,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8768646,
+    "lon": 76.9433915,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8815185,
+    "lon": 77.0134618,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8533041,
+    "lon": 76.9698264,
+    "source": "osm",
+    "kind": "fire_station",
+    "name": "Fire and Rescue Station, Cheruthony"
+  },
+  {
+    "lat": 9.8483414,
+    "lon": 76.957867,
+    "source": "osm",
+    "kind": "hospital",
+    "name": "Government Ayurveda Hospital  (annex)  PAREMAVU"
+  },
+  {
+    "lat": 9.8525244,
+    "lon": 76.9628205,
+    "source": "osm",
+    "kind": "police_station",
+    "name": "Police Station , Idukki"
+  },
+  {
+    "lat": 9.8481347,
+    "lon": 76.9618582,
+    "source": "osm",
+    "kind": "hospital",
+    "name": "Government Medical College, Idukki"
+  },
+  {
+    "lat": 9.8746451,
+    "lon": 77.0249453,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8814705,
+    "lon": 77.0045348,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Cheettadikavla Road"
+  },
+  {
+    "lat": 9.8811293,
+    "lon": 77.0032064,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8877116,
+    "lon": 77.0049297,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8817045,
+    "lon": 77.0257578,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8713386,
+    "lon": 77.0334663,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8697953,
+    "lon": 77.0350406,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Karimban- Prakash Road"
+  },
+  {
+    "lat": 9.8720181,
+    "lon": 77.0374595,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8395291,
+    "lon": 77.038094,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.840879,
+    "lon": 77.0368121,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8411868,
+    "lon": 77.0357703,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8098478,
+    "lon": 77.0460534,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.857216,
+    "lon": 76.9634509,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Cheruthoni Old Bridge"
+  },
+  {
+    "lat": 9.855329,
+    "lon": 76.9577667,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "Unnamed bridge"
+  },
+  {
+    "lat": 9.8965808,
+    "lon": 76.9700266,
+    "source": "osm",
+    "kind": "bridge",
+    "name": "karimban thodu"
+  },
+  {
+    "lat": 9.854548,
+    "lon": 76.9408417,
+    "source": "osm",
+    "kind": "school",
+    "name": "Kendriya Vidyalaya Idukki"
+  }
+]
