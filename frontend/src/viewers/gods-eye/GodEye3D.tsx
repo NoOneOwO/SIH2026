@@ -93,6 +93,9 @@ const SENSORS: Record<SensorKind, { label: string; filter: string; tint: string 
 const SENSOR_ORDER: SensorKind[] = ['normal', 'night', 'nvg', 'thermal', 'noir'];
 
 const ESRI_URL = 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer';
+/** Keyless world elevation — real 3D terrain with NO token, so deployed builds
+ * get elevation without any secret in the public bundle. */
+const ESRI_TERRAIN_URL = 'https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer';
 
 /** Dry asphalt tone by OSM highway class (CSS, for Cesium polylines). */
 function roadCss(kind: string): string {
@@ -259,11 +262,19 @@ export default function GodEye3D({
       if (cancelled || !containerRef.current) return;
       cesiumRef.current = Cesium;
 
-      // Optional ion token → world terrain (photorealistic 3D). Keyless
-      // installs keep the default ellipsoid and still render everything.
+      // Real 3D terrain by DEFAULT via keyless Esri World Elevation — no env
+      // setup, no token in the public bundle (Vercel flags VITE_* secrets).
+      // Cesium ion world terrain stays an optional upgrade when the token is
+      // configured (local dev); keyless installs previously fell back to the
+      // smooth ellipsoid, which looked "2D" on deployed builds.
       const ionToken = import.meta.env.VITE_CESIUM_ION_TOKEN as string | undefined;
       let terrainProvider: any = undefined;
-      if (ionToken) {
+      try {
+        terrainProvider = await Cesium.ArcGISTiledElevationTerrainProvider.fromUrl(ESRI_TERRAIN_URL);
+      } catch {
+        terrainProvider = undefined; // offline / blocked → smooth ellipsoid
+      }
+      if (!terrainProvider && ionToken) {
         Cesium.Ion.defaultAccessToken = ionToken;
         try {
           terrainProvider = await Cesium.createWorldTerrainAsync();
