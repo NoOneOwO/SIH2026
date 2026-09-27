@@ -27,6 +27,17 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"Warning: Could not ensure S3 bucket: {e}")
 
+    # Startup: create DB tables + seed demo data when a database is
+    # configured and reachable. The container deploy never ran init_db, so
+    # a fresh database meant every DB-backed endpoint 500'd silently.
+    # Skipped automatically (with a warning) when no DB is reachable.
+    try:
+        from init_db import create_tables, seed_data
+        await create_tables()
+        await seed_data()
+    except Exception as e:
+        print(f"Warning: database init skipped ({e})")
+
     yield
 
     # Shutdown

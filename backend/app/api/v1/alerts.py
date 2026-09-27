@@ -287,7 +287,15 @@ async def list_alerts(
     db: AsyncSession = Depends(get_db),
 ):
     """List all alert drafts (DB classic rows + file-store ledger alerts)."""
-    alerts, total = await service.list_alerts(db, sim_run_id, limit, offset)
+    # Fail soft on an unreachable/unmigrated database: the file-store alerts
+    # still list, with an honest note instead of a bare 500 (whose missing
+    # CORS headers show up in the browser as "Failed to fetch").
+    db_note: str | None = None
+    try:
+        alerts, total = await service.list_alerts(db, sim_run_id, limit, offset)
+    except Exception:
+        alerts, total = [], 0
+        db_note = "Classic-alert database unavailable — showing file-store alerts only."
     out = [
         {
             "id": str(a.id),
@@ -320,4 +328,4 @@ async def list_alerts(
             "dam_name": a.get("dam_name"),
         })
         ledger_count += 1
-    return {"total": total + ledger_count, "alerts": out}
+    return {"total": total + ledger_count, "alerts": out, "database": db_note}

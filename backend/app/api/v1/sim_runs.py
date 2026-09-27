@@ -122,7 +122,16 @@ async def list_sim_runs(
     Report Generator show every completed run without the user ever needing
     to hunt for a UUID — rows carry dam/case labels for readable pickers.
     """
-    runs, total = await service.list_sim_runs(db, scenario_id, job_status, limit, offset)
+    # Fail soft: if the database is unreachable/unmigrated (e.g. a deploy
+    # without DATABASE_URL), still return the ledger rows with an honest
+    # note instead of a bare 500 — whose missing CORS headers read as
+    # "Failed to fetch" in the browser.
+    db_note: str | None = None
+    try:
+        runs, total = await service.list_sim_runs(db, scenario_id, job_status, limit, offset)
+    except Exception:
+        runs, total = [], 0
+        db_note = "Classic-run database unavailable — showing sandbox/impact ledger runs only."
     merged = [
         {
             "id": str(r.id),
@@ -170,4 +179,5 @@ async def list_sim_runs(
         "limit": limit,
         "offset": offset,
         "sim_runs": merged,
+        "database": db_note,
     }

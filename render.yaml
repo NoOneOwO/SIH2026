@@ -14,12 +14,24 @@ services:
         value: production
       - key: CORS_ORIGINS
         value: https://YOUR-APP.vercel.app # ← your Vercel frontend URL
+      - key: DATABASE_URL
+        fromDatabase:
+          name: damsafe-db
+          property: connectionString
       - key: LISFLOOD_MODE
         value: direct
       - key: DAMSAFE_AUTH_SECRET
         generateValue: true # Render generates a long random secret
       - key: GROQ_API_KEY
         sync: false # set manually in dashboard (assistant LLM; optional)
+
+# Postgres the classic path persists to (dams, scenarios, sim_runs, alerts,
+# users). Tables + demo seed are created automatically on backend startup.
+databases:
+  - name: damsafe-db
+    databaseName: damsafe
+    user: damsafe
+    plan: free
 
   # Keep-alive cron — pings GET /health every 10 min so the free-tier
   # web service above doesn't sleep (Render sleeps after ~15 min idle).
