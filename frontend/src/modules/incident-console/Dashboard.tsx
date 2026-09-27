@@ -21,12 +21,9 @@ import {
 } from 'recharts';
 import HeroPanel from '../../components/dashboard/HeroPanel';
 import QuickAction, { type ActionTone } from '../../components/dashboard/QuickAction';
-import SystemHealth, { type DataSourceRow } from '../../components/dashboard/SystemHealth';
-import { alertsApi, damsApi, dashboardApi, sandboxApi, scenariosApi, simRunsApi } from '../../api/client';
+import { dashboardApi } from '../../api/client';
 import { RISK_HEX, formatCount, formatInr, formatRange, formatUtc } from '../../components/impact/format';
 import { loadLastAssessment, type LastAssessment } from '../../utils/lastAssessment';
-
-import { BASE_URL } from '../../api/base';
 
 interface DashStats {
   generated_at_utc: string;
@@ -98,14 +95,11 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   const [assessment, setAssessment] = useState<LastAssessment | null>(null);
-  const [terrainSites, setTerrainSites] = useState<number | null>(null);
-  const [backend, setBackend] = useState<'online' | 'unavailable' | 'unknown'>('unknown');
   const [stats, setStats] = useState<DashStats | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
   const [news, setNews] = useState<NewsFeed | null>(null);
   const [newsError, setNewsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
     setAssessment(loadLastAssessment());
@@ -113,25 +107,10 @@ export default function Dashboard() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const total = (r: PromiseSettledResult<any>) =>
-      r.status === 'fulfilled' && typeof r.value?.total === 'number' ? r.value.total : null;
-
-    const [health, terrain, statsRes, newsRes] = await Promise.allSettled([
-      fetch(`${BASE_URL}/health`).then((r) => r.ok),
-      sandboxApi.dams(),
+    const [statsRes, newsRes] = await Promise.allSettled([
       dashboardApi.stats(),
       dashboardApi.news(),
     ]);
-    setBackend(
-      health.status === 'fulfilled' && health.value === true
-        ? 'online'
-        : health.status === 'rejected'
-          ? 'unavailable'
-          : 'unknown',
-    );
-    setTerrainSites(
-      terrain.status === 'fulfilled' && typeof terrain.value?.total === 'number' ? terrain.value.total : null,
-    );
     if (statsRes.status === 'fulfilled') {
       setStats(statsRes.value);
       setStatsError(null);
@@ -151,45 +130,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     void load();
-  }, [load, nonce]);
-
-  const sources: DataSourceRow[] = useMemo(
-    () => [
-      {
-        name: 'Backend API',
-        status: backend,
-        detail:
-          backend === 'online'
-            ? `${BASE_URL || window.location.origin}/api/v1 responded to a health check`
-            : 'No health response — charts and news show a note instead of figures',
-      },
-      {
-        name: 'Simulation terrain',
-        status: terrainSites == null ? 'unknown' : terrainSites > 0 ? 'online' : 'unavailable',
-        detail:
-          terrainSites == null
-            ? 'Terrain inventory not requested yet'
-            : `${terrainSites} dam domains with a DEM ready for screening simulation`,
-      },
-      {
-        name: 'Flood impact assessment',
-        status: assessment ? 'online' : 'unknown',
-        detail: assessment
-          ? `${assessment.dam_name} • ${assessment.case} case • engine ${assessment.engine} • last run ${formatUtc(
-              assessment.generated_at_utc,
-            )}`
-          : 'No assessment run in this session — open Flood Impact to produce one',
-      },
-      {
-        name: 'Critical-asset inventory',
-        status: assessment ? 'online' : 'unknown',
-        detail: assessment
-          ? `Source: ${assessment.asset_provenance} (OpenStreetMap settlements, hospitals, bridges, power)`
-          : 'Reported per assessment once one has run',
-      },
-    ],
-    [assessment, backend, terrainSites],
-  );
+  }, [load]);
 
   const simData = stats?.series.sims_per_day ?? [];
   const registerTypes = stats?.series.register_types ?? [];
@@ -468,33 +409,29 @@ export default function Dashboard() {
           )}
         </section>
 
-        {/* Data sources (real checks, no invented uptime) */}
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          <SystemHealth sources={sources} onRefresh={() => setNonce((n) => n + 1)} />
-          <div className="cmd-card space-y-3 p-5">
-            <h2 className="text-[15px] font-semibold text-cmd-ink">How to read this platform</h2>
-            <ul className="space-y-2 text-[12.5px] leading-relaxed text-cmd-muted">
-              <li>
-                • Depth, arrival times and exposure are <span className="text-cmd-ink">modelled estimates</span> from a
-                screening propagation model, not observations or a certified forecast.
-              </li>
-              <li>
-                • Settlements and facilities come from <span className="text-cmd-ink">OpenStreetMap</span>; population is
-                taken from the OSM tag when present, otherwise estimated from the settlement class.
-              </li>
-              <li>
-                • Money figures use planning-level unit rates and are always shown as ranges with a confidence level.
-              </li>
-              <li>• "Potential avoided damage" is what early action could save — never guaranteed savings.</li>
-            </ul>
-            <button
-              onClick={() => navigate('/impact')}
-              className="mt-1 inline-flex items-center gap-1.5 text-[12px] font-semibold text-cmd-teal hover:text-cmd-ink"
-            >
-              See the full assumption list in Flood Impact → Data &amp; confidence
-              <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} />
-            </button>
-          </div>
+        <div className="cmd-card space-y-3 p-5">
+          <h2 className="text-[15px] font-semibold text-cmd-ink">How to read this platform</h2>
+          <ul className="space-y-2 text-[12.5px] leading-relaxed text-cmd-muted">
+            <li>
+              • Depth, arrival times and exposure are <span className="text-cmd-ink">modelled estimates</span> from a
+              screening propagation model, not observations or a certified forecast.
+            </li>
+            <li>
+              • Settlements and facilities come from <span className="text-cmd-ink">OpenStreetMap</span>; population is
+              taken from the OSM tag when present, otherwise estimated from the settlement class.
+            </li>
+            <li>
+              • Money figures use planning-level unit rates and are always shown as ranges with a confidence level.
+            </li>
+            <li>• "Potential avoided damage" is what early action could save — never guaranteed savings.</li>
+          </ul>
+          <button
+            onClick={() => navigate('/impact')}
+            className="mt-1 inline-flex items-center gap-1.5 text-[12px] font-semibold text-cmd-teal hover:text-cmd-ink"
+          >
+            See the full assumption list in Flood Impact → Data &amp; confidence
+            <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} />
+          </button>
         </div>
 
         {/* Disclaimer (existing copy preserved) */}

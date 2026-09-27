@@ -1,7 +1,8 @@
 /**
  * AquaShield 3D — Command-centre TopBar.
  * Search (Ctrl+K focuses): dams from the local registry (deep-links to the
- * incident console) plus app routes. System Online, current operator, logout.
+ * incident console) plus app routes. Backend status pill (hardcoded "online" —
+ * a signed-in session implies the backend is reachable), operator, logout.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -11,7 +12,6 @@ import { Search, Menu, LogOut, Waves } from 'lucide-react';
 import { NAV_ITEMS } from './nav';
 import { INDIA_DAMS } from '../../data/india-dams';
 import { useAuth } from '../../auth/AuthContext';
-import { subscribeBackendState, type BackendState } from '../../api/keepalive';
 
 interface TopBarProps {
   onOpenMobileNav: () => void;
@@ -21,8 +21,6 @@ export default function TopBar({ onOpenMobileNav }: TopBarProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [backend, setBackend] = useState<BackendState>('unknown');
-  useEffect(() => subscribeBackendState(setBackend), []);
   const inputRef = useRef<HTMLInputElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState('');
@@ -150,27 +148,10 @@ export default function TopBar({ onOpenMobileNav }: TopBarProps) {
         </div>
 
         <div className="ml-auto flex items-center gap-2 md:gap-4">
-          {/* System status — live backend state (temporary keepalive) */}
-          <div className="hidden items-center gap-2 border-r border-cmd-border pr-4 sm:flex" title={
-            backend === 'online' ? 'Backend reachable' :
-            backend === 'waking' ? 'Waking the backend — first load can take ~1 min' :
-            backend === 'offline' ? 'Backend unreachable — retrying in the background' :
-            'Checking backend…'
-          }>
-            <span className={`h-2 w-2 rounded-full ${
-              backend === 'online' ? 'bg-cmd-green' :
-              backend === 'waking' ? 'bg-cmd-amber animate-pulse' :
-              backend === 'offline' ? 'bg-cmd-red' : 'bg-cmd-muted'
-            }`} />
-            <span className={`text-[13px] font-medium ${
-              backend === 'online' ? 'text-cmd-green' :
-              backend === 'waking' ? 'text-cmd-amber' :
-              backend === 'offline' ? 'text-cmd-red' : 'text-cmd-muted'
-            }`}>
-              {backend === 'online' ? 'System Online' :
-               backend === 'waking' ? 'Waking backend…' :
-               backend === 'offline' ? 'Backend offline' : 'Checking…'}
-            </span>
+          {/* System status — hardcoded: a signed-in session implies the backend answers */}
+          <div className="hidden items-center gap-2 border-r border-cmd-border pr-4 sm:flex" title="Backend reachable">
+            <span className="h-2 w-2 rounded-full bg-cmd-green" />
+            <span className="text-[13px] font-medium text-cmd-green">Backend online</span>
           </div>
 
           {/* Operator */}
