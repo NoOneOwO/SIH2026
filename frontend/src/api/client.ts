@@ -75,6 +75,13 @@ async function apiFetch<T>(
   return response.json();
 }
 
+// ── Dashboard (aggregated stats + live news feeds) ───────────────────────
+
+export const dashboardApi = {
+  stats: () => apiFetch<any>('/dashboard/stats'),
+  news: () => apiFetch<{ articles: any[]; sources: string[]; note: string }>('/dashboard/news'),
+};
+
 // ── Dams ──────────────────────────────────────────────────────────────────────
 
 export const damsApi = {

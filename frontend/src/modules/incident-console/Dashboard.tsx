@@ -2,36 +2,70 @@
  * AquaShield 3D — Dashboard (command-centre landing).
  *
  * Every number on this page is either fetched from the backend or taken from
- * the last assessment the user actually ran. Where a value is genuinely not
- * available the card shows an explicit "—"/"not available" instead of a
- * placeholder figure, and nothing here is decorated with invented sparklines.
+ * the last assessment the user actually ran. Charts are built from the
+ * platform's own recorded activity (/dashboard/stats: run ledger + curated
+ * register), and the news rail lists real items from public disaster/news
+ * feeds (/dashboard/news: GDACS + GDELT, fetched server-side). Where a value
+ * is genuinely not available the card says so — nothing here is invented.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  AlertTriangle, Activity, Users, Map, Route, FileText, Waves, ArrowRight, RefreshCw,
+  AlertTriangle, Globe2, Map, Route, FileText, Waves, ArrowRight, RefreshCw, ExternalLink,
 } from 'lucide-react';
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell,
+  PieChart, Pie,
+} from 'recharts';
 import HeroPanel from '../../components/dashboard/HeroPanel';
-import StatCard, { type StatTone } from '../../components/dashboard/StatCard';
 import QuickAction, { type ActionTone } from '../../components/dashboard/QuickAction';
 import SystemHealth, { type DataSourceRow } from '../../components/dashboard/SystemHealth';
-import { alertsApi, damsApi, sandboxApi, scenariosApi, simRunsApi } from '../../api/client';
-import { INDIA_DAMS } from '../../data/india-dams';
+import { alertsApi, damsApi, dashboardApi, sandboxApi, scenariosApi, simRunsApi } from '../../api/client';
 import { RISK_HEX, formatCount, formatInr, formatRange, formatUtc } from '../../components/impact/format';
 import { loadLastAssessment, type LastAssessment } from '../../utils/lastAssessment';
 
 import { BASE_URL } from '../../api/base';
 
-interface Kpi {
-  label: string;
-  caption: string;
-  value: string;
-  tone: StatTone;
-  icon: typeof Map;
-  sub?: string;
+interface DashStats {
+  generated_at_utc: string;
+  totals: { recorded_runs: number; terrain_sites: number; register_dams: number; alerts: number };
+  series: {
+    sims_per_day: Array<{ day: string; runs: number }>;
+    runs_per_dam: Array<{ dam: string; runs: number }>;
+    severity_mix: Array<{ band: string; count: number }>;
+    register_types: Array<{ type: string; count: number }>;
+    alert_pipeline: Array<{ status: string; count: number }>;
+  };
 }
+
+interface NewsItem {
+  title: string;
+  source: string;
+  date: string;
+  url: string | null;
+  severity?: string;
+}
+
+interface NewsFeed {
+  articles: NewsItem[];
+  sources: string[];
+  note: string;
+}
+
+/** Recharts palette matched to the command-centre theme (index.css tokens). */
+const PIE_COLORS = ['#65BFA9', '#55C99A', '#D8B24C', '#D96B70', '#7C9EB8', '#B88A5C'];
+
+const CHART_TIP = {
+  contentStyle: {
+    background: '#0B141B', border: '1px solid #263742', borderRadius: 8,
+    fontSize: 12, padding: '6px 10px',
+  },
+  labelStyle: { color: '#E8EEF0', fontWeight: 600, marginBottom: 2 },
+  itemStyle: { color: '#91A2AD' },
+  cursor: { fill: 'rgba(232,238,240,0.05)' },
+} as const;
 
 const ACTIONS: Array<{
   title: string;
@@ -46,19 +80,30 @@ const ACTIONS: Array<{
   { title: 'Report Generator', description: 'Decision-support documents', path: '/reports', icon: FileText, tone: 'red' },
 ];
 
+/** GDACS dates look like 2026-09-20T…, GDELT like 20260927T123000Z. */
+const fmtNewsDate = (d: string) => {
+  if (!d) return '';
+  if (/^\d{8}/.test(d)) return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
+  return d.slice(0, 10);
+};
+
+const SEVERITY_DOT: Record<string, string> = {
+  RED: '#D96B70',
+  ORANGE: '#D8B24C',
+  GREEN: '#55C99A',
+};
+
 export default function Dashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
   const [assessment, setAssessment] = useState<LastAssessment | null>(null);
-  const [counts, setCounts] = useState<{
-    dams: number | null;
-    scenarios: number | null;
-    simRuns: number | null;
-    alerts: number | null;
-    terrainSites: number | null;
-  }>({ dams: null, scenarios: null, simRuns: null, alerts: null, terrainSites: null });
+  const [terrainSites, setTerrainSites] = useState<number | null>(null);
   const [backend, setBackend] = useState<'online' | 'unavailable' | 'unknown'>('unknown');
+  const [stats, setStats] = useState<DashStats | null>(null);
+  const [statsError, setStatsError] = useState<string | null>(null);
+  const [news, setNews] = useState<NewsFeed | null>(null);
+  const [newsError, setNewsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [nonce, setNonce] = useState(0);
 
@@ -71,13 +116,11 @@ export default function Dashboard() {
     const total = (r: PromiseSettledResult<any>) =>
       r.status === 'fulfilled' && typeof r.value?.total === 'number' ? r.value.total : null;
 
-    const [health, damList, scen, runs, alerts, terrain] = await Promise.allSettled([
+    const [health, terrain, statsRes, newsRes] = await Promise.allSettled([
       fetch(`${BASE_URL}/health`).then((r) => r.ok),
-      damsApi.list(),
-      scenariosApi.list(),
-      simRunsApi.list(),
-      alertsApi.list(),
       sandboxApi.dams(),
+      dashboardApi.stats(),
+      dashboardApi.news(),
     ]);
     setBackend(
       health.status === 'fulfilled' && health.value === true
@@ -86,75 +129,29 @@ export default function Dashboard() {
           ? 'unavailable'
           : 'unknown',
     );
-    setCounts({
-      dams: total(damList),
-      scenarios: total(scen),
-      simRuns: total(runs),
-      alerts: total(alerts),
-      terrainSites:
-        terrain.status === 'fulfilled' && typeof terrain.value?.total === 'number' ? terrain.value.total : null,
-    });
+    setTerrainSites(
+      terrain.status === 'fulfilled' && typeof terrain.value?.total === 'number' ? terrain.value.total : null,
+    );
+    if (statsRes.status === 'fulfilled') {
+      setStats(statsRes.value);
+      setStatsError(null);
+    } else {
+      setStats(null);
+      setStatsError(statsRes.reason?.message ?? 'unavailable');
+    }
+    if (newsRes.status === 'fulfilled') {
+      setNews(newsRes.value);
+      setNewsError(null);
+    } else {
+      setNews(null);
+      setNewsError(newsRes.reason?.message ?? 'unreachable');
+    }
     setLoading(false);
   }, []);
 
   useEffect(() => {
     void load();
   }, [load, nonce]);
-
-  const fmt = (v: number | null) => (v == null ? '—' : v.toLocaleString('en-IN'));
-
-  const kpis: Kpi[] = useMemo(
-    () => [
-      {
-        label: 'Dams in register',
-        caption: counts.dams == null ? 'Registry only (backend unavailable)' : 'Loaded from the backend',
-        value: fmt(counts.dams),
-        sub: `${INDIA_DAMS.length} in the curated India register`,
-        tone: 'teal',
-        icon: Map,
-      },
-      {
-        label: 'Terrain-backed sites',
-        caption: 'Ready to simulate',
-        value: fmt(counts.terrainSites),
-        sub: 'Dams with a DEM domain on the server',
-        tone: 'green',
-        icon: Activity,
-      },
-      {
-        label: 'Scenarios',
-        caption: 'Approved or draft in the register',
-        value: fmt(counts.scenarios),
-        tone: 'slateblue',
-        icon: Map,
-      },
-      {
-        label: 'Simulation runs',
-        caption: 'Recorded jobs',
-        value: fmt(counts.simRuns),
-        tone: 'amber',
-        icon: Activity,
-      },
-      {
-        label: 'Settlements assessed',
-        caption: assessment ? `Latest assessment (${assessment.dam_name})` : 'No assessment run in this session',
-        value: assessment ? assessment.settlements_assessed.toLocaleString('en-IN') : '—',
-        sub: assessment
-          ? `${assessment.settlements_inundated} inundated • ${assessment.settlements_at_risk} at risk`
-          : 'Run an impact assessment to populate this',
-        tone: 'orange',
-        icon: Users,
-      },
-      {
-        label: 'Alerts on record',
-        caption: counts.alerts == null ? 'Backend unavailable' : 'Draft, approved and dispatched',
-        value: fmt(counts.alerts),
-        tone: 'red',
-        icon: AlertTriangle,
-      },
-    ],
-    [assessment, counts],
-  );
 
   const sources: DataSourceRow[] = useMemo(
     () => [
@@ -164,15 +161,15 @@ export default function Dashboard() {
         detail:
           backend === 'online'
             ? `${BASE_URL || window.location.origin}/api/v1 responded to a health check`
-            : 'No health response — figures shown as "—" until it is reachable',
+            : 'No health response — charts and news show a note instead of figures',
       },
       {
         name: 'Simulation terrain',
-        status: counts.terrainSites == null ? 'unknown' : counts.terrainSites > 0 ? 'online' : 'unavailable',
+        status: terrainSites == null ? 'unknown' : terrainSites > 0 ? 'online' : 'unavailable',
         detail:
-          counts.terrainSites == null
+          terrainSites == null
             ? 'Terrain inventory not requested yet'
-            : `${counts.terrainSites} dam domains with a DEM ready for screening simulation`,
+            : `${terrainSites} dam domains with a DEM ready for screening simulation`,
       },
       {
         name: 'Flood impact assessment',
@@ -191,8 +188,13 @@ export default function Dashboard() {
           : 'Reported per assessment once one has run',
       },
     ],
-    [assessment, backend, counts.terrainSites],
+    [assessment, backend, terrainSites],
   );
+
+  const simData = stats?.series.sims_per_day ?? [];
+  const registerTypes = stats?.series.register_types ?? [];
+  const totalRegisterDams = registerTypes.reduce((s, d) => s + d.count, 0);
+  const newsItems = useMemo(() => (news?.articles ?? []).slice(0, 8), [news]);
 
   return (
     <div className="h-full overflow-y-auto bg-cmd-bg">
@@ -280,11 +282,105 @@ export default function Dashboard() {
           )}
         </section>
 
-        {/* KPI row — registry facts and last-assessment counts only */}
-        <section aria-label="Registry and assessment metrics" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-          {kpis.map(({ label, caption, value, sub, tone, icon }) => (
-            <StatCard key={label} icon={icon} value={value} label={label} caption={caption} sub={sub} tone={tone} />
-          ))}
+        {/* Charts — platform's own recorded activity + curated register composition */}
+        <section aria-label="Platform statistics" className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          {/* Activity: recorded simulation runs, last 14 days */}
+          <div className="cmd-card p-5 xl:col-span-2">
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="flex items-center gap-2 text-[15px] font-semibold text-cmd-ink">
+                <Waves className="h-[18px] w-[18px] text-cmd-teal" strokeWidth={1.75} />
+                Simulation activity — last 14 days
+              </h2>
+              <span className="text-[10.5px] font-medium uppercase tracking-[0.12em] text-cmd-muted">
+                Recorded runs • D-13 → today
+              </span>
+            </div>
+            {statsError ? (
+              <p className="py-10 text-center text-[12.5px] text-cmd-muted">
+                Statistics unavailable right now — the backend did not answer. No placeholder figures are shown.
+              </p>
+            ) : !stats ? (
+              <div className="flex h-[190px] items-center justify-center text-[12.5px] text-cmd-muted">Loading…</div>
+            ) : (
+              <>
+                <ResponsiveContainer width="100%" height={190}>
+                  <BarChart data={simData} margin={{ top: 12, right: 4, left: -20, bottom: 0 }}>
+                    <XAxis
+                      dataKey="day"
+                      tick={{ fill: '#91A2AD', fontSize: 10 }}
+                      tickLine={false}
+                      axisLine={{ stroke: '#263742' }}
+                      interval={2}
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      tick={{ fill: '#91A2AD', fontSize: 10 }}
+                      tickLine={false}
+                      axisLine={false}
+                      width={36}
+                    />
+                    <Tooltip {...CHART_TIP} />
+                    <Bar dataKey="runs" name="Recorded runs" radius={[3, 3, 0, 0]} maxBarSize={26}>
+                      {simData.map((d) => (
+                        <Cell key={d.day} fill={d.runs > 0 ? '#65BFA9' : '#1E2E38'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+                <p className="mt-2 text-[11px] text-cmd-muted">
+                  From the platform's own run ledger ({stats.totals.recorded_runs} recorded run
+                  {stats.totals.recorded_runs === 1 ? '' : 's'} in total). Empty days stay empty — nothing is estimated.
+                </p>
+              </>
+            )}
+          </div>
+
+          {/* Register composition donut */}
+          <div className="cmd-card p-5">
+            <h2 className="text-[15px] font-semibold text-cmd-ink">Dam register</h2>
+            <p className="text-[11px] text-cmd-muted">Curated India dam register by type</p>
+            {statsError ? (
+              <p className="py-10 text-center text-[12.5px] text-cmd-muted">Statistics unavailable right now.</p>
+            ) : !stats ? (
+              <div className="flex h-[190px] items-center justify-center text-[12.5px] text-cmd-muted">Loading…</div>
+            ) : (
+              <>
+                <div className="relative">
+                  <ResponsiveContainer width="100%" height={160}>
+                    <PieChart>
+                      <Pie
+                        data={registerTypes}
+                        dataKey="count"
+                        nameKey="type"
+                        innerRadius={48}
+                        outerRadius={68}
+                        paddingAngle={3}
+                        stroke="#101B23"
+                        strokeWidth={2}
+                      >
+                        {registerTypes.map((_, i) => (
+                          <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip {...CHART_TIP} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-xl font-bold tabular-nums text-cmd-ink">{totalRegisterDams}</span>
+                    <span className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-cmd-muted">dams</span>
+                  </div>
+                </div>
+                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1.5">
+                  {registerTypes.map((d, i) => (
+                    <span key={d.type} className="flex items-center gap-1.5 text-[11px] text-cmd-muted">
+                      <span className="h-2 w-2 rounded-full" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
+                      {d.type} <span className="font-semibold text-cmd-ink">{d.count}</span>
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </section>
 
         {/* Quick actions */}
@@ -307,6 +403,69 @@ export default function Dashboard() {
               />
             ))}
           </div>
+        </section>
+
+        {/* Live dam & flood news — real public feeds, fetched server-side */}
+        <section className="cmd-card p-5" aria-label="Dam and flood news from public feeds">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="flex items-center gap-2 text-[15px] font-semibold text-cmd-ink">
+              <Globe2 className="h-[18px] w-[18px] text-cmd-teal" strokeWidth={1.75} />
+              Dam &amp; flood news
+            </h2>
+            {news && news.articles.length > 0 && (
+              <span className="rounded-md border border-cmd-border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-cmd-muted">
+                {news.sources.join(' • ')}
+              </span>
+            )}
+          </div>
+
+          {newsError ? (
+            <p className="text-[12.5px] text-cmd-muted">
+              News feeds are unreachable right now — showing no items rather than invented ones. ({newsError})
+            </p>
+          ) : !news ? (
+            <div className="flex items-center gap-2 py-4 text-[12.5px] text-cmd-muted">
+              <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Fetching live feeds…
+            </div>
+          ) : news.articles.length === 0 ? (
+            <p className="text-[12.5px] text-cmd-muted">{news.note}</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-x-8 gap-y-2.5 md:grid-cols-2">
+                {newsItems.map((a, i) => (
+                  <a
+                    key={`${a.title}-${i}`}
+                    href={a.url || undefined}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={`group flex items-start gap-2.5 rounded-lg px-2 py-1.5 -mx-2 transition-colors hover:bg-white/[0.03] ${
+                      a.url ? '' : 'cursor-default'
+                    }`}
+                  >
+                    <span
+                      className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
+                      style={{ background: SEVERITY_DOT[(a.severity || '').toUpperCase()] ?? '#65BFA9' }}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[12.5px] font-medium text-cmd-ink group-hover:text-cmd-teal">
+                        {a.title}
+                      </span>
+                      <span className="text-[10.5px] text-cmd-muted">
+                        {a.source || 'public feed'} • {fmtNewsDate(a.date)}
+                      </span>
+                    </span>
+                    {a.url && (
+                      <ExternalLink
+                        className="mt-1 h-3 w-3 shrink-0 text-cmd-muted opacity-0 transition-opacity group-hover:opacity-70"
+                        strokeWidth={1.75}
+                      />
+                    )}
+                  </a>
+                ))}
+              </div>
+              <p className="mt-3 text-[10.5px] text-cmd-muted">{news.note}</p>
+            </>
+          )}
         </section>
 
         {/* Data sources (real checks, no invented uptime) */}
