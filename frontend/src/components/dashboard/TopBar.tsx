@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Settings, Menu, LogOut, Waves } from 'lucide-react';
+import { Search, Menu, LogOut, Waves } from 'lucide-react';
 import { NAV_ITEMS } from './nav';
 import { INDIA_DAMS } from '../../data/india-dams';
 import { useAuth } from '../../auth/AuthContext';
@@ -175,7 +175,7 @@ export default function TopBar({ onOpenMobileNav }: TopBarProps) {
 
           {/* Operator */}
           {user ? (
-            <div className="hidden items-center gap-2 text-[13px] sm:flex" title={`${user.designation || user.role}${user.dam_id ? ` • posted: ${user.dam_id}` : ''}`}>
+            <div className="flex items-center gap-2 text-[13px]" title={`${user.designation || user.role}${user.dam_id ? ` • posted: ${user.dam_id}` : ''}`}>
               <span className="flex h-7 w-7 items-center justify-center rounded-full border border-cmd-teal/40 bg-cmd-tealdim font-bold text-cmd-teal text-xs">
                 {user.name.charAt(0).toUpperCase()}
               </span>
@@ -183,12 +183,13 @@ export default function TopBar({ onOpenMobileNav }: TopBarProps) {
               {user.dam_id && (
                 <span className="px-1.5 py-0.5 rounded-md bg-cmd-teal/15 text-cmd-teal text-[10px] font-bold font-mono">{user.dam_id}</span>
               )}
-              <button onClick={() => { logout(); navigate('/'); }} className="p-1.5 rounded-md text-cmd-muted hover:text-cmd-red" title="Sign out">
+              <button onClick={() => { logout(); navigate('/'); }} className="flex items-center gap-1 rounded-md px-2 py-1.5 text-cmd-muted hover:text-cmd-red" title="Sign out">
                 <LogOut className="h-4 w-4" strokeWidth={1.75} />
+                <span className="text-[11px] font-semibold">Sign out</span>
               </button>
             </div>
           ) : (
-            <div className="hidden items-center gap-2 text-[13px] sm:flex">
+            <div className="flex items-center gap-2 text-[13px]">
               <span className="flex h-7 w-7 items-center justify-center rounded-full border border-cmd-border bg-cmd-panel2 text-cmd-muted">
                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.75}>
                   <circle cx="12" cy="8" r="3.5" />
@@ -201,14 +202,6 @@ export default function TopBar({ onOpenMobileNav }: TopBarProps) {
               </Link>
             </div>
           )}
-
-          <button
-            aria-label="Settings"
-            title="Settings"
-            className="rounded-md p-2 text-cmd-muted transition-colors hover:bg-white/[0.06] hover:text-cmd-ink"
-          >
-            <Settings className="h-5 w-5" strokeWidth={1.75} />
-          </button>
         </div>
       </div>
     </header>
