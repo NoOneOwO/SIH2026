@@ -38,6 +38,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"Warning: database init skipped ({e})")
 
+    # Ephemeral hosts (Render free tier wipes the disk on every deploy) boot
+    # with empty run-ledger / alert stores, which makes the live demo look
+    # broken. Re-apply the embedded snapshot of REAL session records — only
+    # into empty stores, so anything created live is never overwritten.
+    try:
+        from app.demo_seed import seed_demo_stores
+        print(f"Demo store seed: {seed_demo_stores()}")
+    except Exception as e:
+        print(f"Warning: demo store seed skipped ({e})")
+
     yield
 
     # Shutdown
