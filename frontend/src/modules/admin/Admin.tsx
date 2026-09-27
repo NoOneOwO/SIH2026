@@ -11,7 +11,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { INDIA_DAMS } from '../../data/india-dams';
 import DamRegistry from '../../components/admin/DamRegistry';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+import { BASE_URL } from '../../api/base';
 import { storedToken } from '../../api/client';
 
 interface SimEntry {

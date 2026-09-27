@@ -53,6 +53,11 @@ _cors_extra = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://localhost:5173", *_cors_extra],
+    # Vercel issues a distinct subdomain per deployment (project-git-branch-
+    # team.vercel.app previews included), which exact-match CORS keeps missing.
+    # Accept any https *.vercel.app origin — demo-phase convenience; tighten
+    # to exact origins before real-world handling.
+    allow_origin_regex=r"^https://[a-z0-9-]+\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

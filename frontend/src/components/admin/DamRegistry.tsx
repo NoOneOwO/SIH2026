@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { damsApi } from '../../api/client';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+import { BASE_URL } from '../../api/base';
 
 interface RegistryRow {
   dam_id: string;

@@ -3,7 +3,7 @@
  * Centralized HTTP client for all backend API calls.
  */
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+import { BASE_URL } from './base';
 
 export const TOKEN_KEY = 'damsafe_token';
 

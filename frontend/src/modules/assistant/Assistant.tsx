@@ -9,7 +9,7 @@ import { motion } from 'motion/react';
 import { Send, Bot, User, Sparkles, ChevronDown, Trash2 } from 'lucide-react';
 import { INDIA_DAMS } from '../../data/india-dams';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+import { BASE_URL } from '../../api/base';
 import { storedToken } from '../../api/client';
 
 interface Msg {

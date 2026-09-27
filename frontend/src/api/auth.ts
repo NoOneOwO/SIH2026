@@ -3,9 +3,8 @@
  * Multipart register (with document upload); JSON login.
  */
 
+import { BASE_URL } from './base';
 import { TOKEN_KEY, storedToken } from './client';
-
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export interface AuthUser {
   id: string;

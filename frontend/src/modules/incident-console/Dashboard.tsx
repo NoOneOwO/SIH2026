@@ -22,7 +22,7 @@ import { INDIA_DAMS } from '../../data/india-dams';
 import { RISK_HEX, formatCount, formatInr, formatRange, formatUtc } from '../../components/impact/format';
 import { loadLastAssessment, type LastAssessment } from '../../utils/lastAssessment';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+import { BASE_URL } from '../../api/base';
 
 interface Kpi {
   label: string;

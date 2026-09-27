@@ -11,7 +11,7 @@
  * once the backend moves to a non-sleeping host.
  */
 
-const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+import { BASE_URL } from './base';
 
 export const KEEPALIVE_ENABLED = true;
 const KEEPALIVE_INTERVAL_MS = 10 * 60 * 1000; // re-ping every 10 min while visible
